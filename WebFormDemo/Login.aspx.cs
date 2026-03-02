@@ -55,7 +55,7 @@ namespace WebFormDemo
                         Session["UserName"] = reader["EMP_Name"].ToString();
                         Session["UserEmail"] = reader["EMP_EmailId"].ToString();
 
-                        Response.Redirect("Dashboard.aspx");
+                        Response.Redirect("EmployeeDashboard.aspx");
                     }
                     else
                     {

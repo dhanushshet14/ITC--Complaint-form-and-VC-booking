@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Dashboard.aspx.cs" Inherits="WebFormDemo.Dashboard" %>
+﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="EmployeeDashboard.aspx.cs" Inherits="WebFormDemo.Dashboard" %>
 
 <!DOCTYPE html>
 
