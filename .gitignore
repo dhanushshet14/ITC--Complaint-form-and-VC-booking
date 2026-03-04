@@ -361,11 +361,3 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
-
-VCBooking/Login.aspx
-VCBooking/Login.aspx.cs
-VCBooking/Login.aspx.designer.cs
-
-VCBooking/SignUp.aspx
-VCBooking/SignUp.aspx.cs
-VCBooking/SignUp.aspx.designer.cs
