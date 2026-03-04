@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNet.Identity;
+﻿ using Microsoft.AspNet.Identity;
 using Microsoft.Owin.Security;
 using System;
 using System.Web;
@@ -28,8 +28,8 @@ public partial class Account_Login : Page
                 if (user != null)
                 {
                     IdentityHelper.SignIn(manager, user, RememberMe.Checked);
-                    IdentityHelper.RedirectToReturnUrl(Request.QueryString["ReturnUrl"], Response);
-                }
+                Response.Redirect("~/Dashboard.aspx");
+            }
                 else
                 {
                     FailureText.Text = "Invalid username or password.";
