@@ -30,7 +30,7 @@ public partial class _Default : Page
             FormsAuthentication.SetAuthCookie(empCode, false);
 
             // Redirect to Dashboard
-            Response.Redirect("~/Dashboard.aspx");
+            Response.Redirect("~/VCBooking/EmployeeDashboard.aspx");
         }
         else
         {
