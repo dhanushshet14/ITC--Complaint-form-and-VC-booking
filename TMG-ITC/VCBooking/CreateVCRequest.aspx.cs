@@ -145,11 +145,6 @@ namespace VCBooking
             string createdByName = Session["UserName"]?.ToString();
             string createdByEmail = Session["UserEmail"]?.ToString();
 
-            if (string.IsNullOrEmpty(createdByName) || string.IsNullOrEmpty(createdByEmail))
-            {
-                Response.Redirect("Login.aspx");
-                return;
-            }
 
             string meetingId = "";
             string joinUrl = "";
