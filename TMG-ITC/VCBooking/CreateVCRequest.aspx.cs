@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -16,6 +16,8 @@ namespace VCBooking
     {
         protected async void Page_Load(object sender, EventArgs e)
         {
+            Page.MaintainScrollPositionOnPostBack = true;
+
             if (Session["EmployeeCode"] == null)
             {
                 Response.Redirect("~/Login.aspx");
@@ -44,7 +46,7 @@ namespace VCBooking
 
             if (!string.IsNullOrWhiteSpace(txtParticipant.Text))
             {
-                bool exists = false;
+                string[] emails = txtParticipant.Text.Split(',');
 
                 DataTable dt = ViewState["Participants"] as DataTable;
 
@@ -52,36 +54,40 @@ namespace VCBooking
                 {
                     dt = new DataTable();
                     dt.Columns.Add("ParticipantEmail");
-                    ViewState["Participants"] = dt;
                 }
 
-                foreach (DataRow row in dt.Rows)
+                foreach (string email in emails)
                 {
-                    if (row["ParticipantEmail"].ToString().ToLower() ==
-                        txtParticipant.Text.Trim().ToLower())
+                    string cleanEmail = email.Trim().ToLower();
+
+                    if (string.IsNullOrEmpty(cleanEmail))
+                        continue;
+
+                    bool exists = false;
+
+                    foreach (DataRow row in dt.Rows)
                     {
-                        exists = true;
-                        break;
+                        if (row["ParticipantEmail"].ToString().ToLower() == cleanEmail)
+                        {
+                            exists = true;
+                            break;
+                        }
+                    }
+
+                    if (!exists)
+                    {
+                        DataRow dr = dt.NewRow();
+                        dr["ParticipantEmail"] = cleanEmail;
+                        dt.Rows.Add(dr);
                     }
                 }
 
-                if (exists)
-                {
-                    lblParticipantMessage.Text = "Email already added!";
-                }
-                else
-                {
-                    DataRow dr = dt.NewRow();
-                    dr["ParticipantEmail"] = txtParticipant.Text.Trim();
-                    dt.Rows.Add(dr);
+                ViewState["Participants"] = dt;
 
-                    ViewState["Participants"] = dt;
+                gvParticipants.DataSource = dt;
+                gvParticipants.DataBind();
 
-                    gvParticipants.DataSource = dt;
-                    gvParticipants.DataBind();
-
-                    txtParticipant.Text = "";
-                }
+                txtParticipant.Text = "";
             }
         }
 
@@ -124,7 +130,7 @@ namespace VCBooking
                 string.IsNullOrEmpty(txtFrom.Text) ||
                 string.IsNullOrEmpty(txtTo.Text))
             {
-                Response.Write("<script>alert('Please fill all required fields');</script>");
+                ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Please fill all required fields');", true);
                 return;
             }
 
@@ -132,7 +138,7 @@ namespace VCBooking
 
             if (dt == null || dt.Rows.Count == 0)
             {
-                Response.Write("<script>alert('Add at least one participant');</script>");
+                ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Add at least one participant');", true);
                 return;
             }
 
@@ -142,8 +148,8 @@ namespace VCBooking
             foreach (DataRow row in dt.Rows)
                 participantEmails.Add(row["ParticipantEmail"].ToString());
 
-            string createdByName = Session["UserName"]?.ToString();
-            string createdByEmail = Session["UserEmail"]?.ToString();
+            string createdByName = Session["UserName"] != null ? Session["UserName"].ToString() : null;
+            string createdByEmail = Session["UserEmail"] != null ? Session["UserEmail"].ToString() : null;
 
             if (string.IsNullOrEmpty(createdByName) || string.IsNullOrEmpty(createdByEmail))
             {
@@ -184,11 +190,13 @@ namespace VCBooking
                     fullFromDateTime = DateTime.Parse(txtDate.Text + " " + txtFrom.Text);
                     fullToDateTime = DateTime.Parse(txtDate.Text + " " + txtTo.Text);
 
-                    // 🔹 Overlap check
+                    // 🔹 Overlap check (Ignore Cancelled/Completed)
                     string overlapCheckQuery = @"
                 SELECT COUNT(*)
                 FROM VCRequestHeader
                 WHERE VCAccountId = @VCAccountId
+                AND VCStatus NOT IN ('Cancelled', 'Completed')
+                AND CAST(VCDate AS DATE) = CAST(@NewFromTime AS DATE)
                 AND (@NewFromTime < ToTime AND @NewToTime > FromTime)";
 
                     SqlCommand cmdCheck = new SqlCommand(overlapCheckQuery, conn, transaction);
@@ -201,7 +209,7 @@ namespace VCBooking
                     if (overlapCount > 0)
                     {
                         transaction.Rollback();
-                        Response.Write("<script>alert('Selected VC Account is already booked!');</script>");
+                        ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Selected VC Account is already booked!');", true);
                         return;
                     }
 
@@ -249,15 +257,13 @@ namespace VCBooking
                     var zoomResponse = await zoomService.CreateMeetingAsync(
                         txtTopic.Text.Trim(),
                         fullFromDateTime,
-                        (int)(fullToDateTime - fullFromDateTime).TotalMinutes,
-                        createdByName,
-                        createdByEmail
+                        (int)(fullToDateTime - fullFromDateTime).TotalMinutes
                     );
 
-                    meetingId = zoomResponse["id"].ToString();
-                    joinUrl = zoomResponse["join_url"].ToString();
-                    startUrl = zoomResponse["start_url"].ToString();
-                    password = zoomResponse["password"].ToString();
+                    meetingId = zoomResponse.id;
+                    joinUrl = zoomResponse.join_url;
+                    startUrl = zoomResponse.start_url;
+                    password = zoomResponse.password;
 
                     // 🔹 Update Header with Zoom details
                     SqlCommand cmdUpdateZoom = new SqlCommand(@"
@@ -296,29 +302,24 @@ namespace VCBooking
             var emailService = new VCBooking.Services.EmailService();
             int duration = (int)(fullToDateTime - fullFromDateTime).TotalMinutes;
 
-            foreach (string email in participantEmails)
+            try
             {
-                try
-                {
-                    await emailService.SendMeetingInvitationAsync(
-                        email,
-                        txtTopic.Text.Trim(),
-                        fullFromDateTime,
-                        duration,
-                        joinUrl,
-                        meetingId,
-                        password,
-                        createdByName,
-                        createdByEmail
-                    );
-                }
-                catch
-                {
-                    Response.Write("Email Error");
-                }
+                await emailService.SendMeetingInviteAsync(
+                    txtTopic.Text.Trim(),
+                    fullFromDateTime,
+                    duration,
+                    joinUrl,
+                    password,
+                    participantEmails);
+            }
+            catch (Exception ex)
+            {
+                // Log or ignore as it's fire-and-forget-ish
+                System.Diagnostics.Debug.WriteLine("Email Error: " + ex.Message);
             }
 
-            Response.Write("<script>alert('VC Request Created Successfully!');</script>");
+            ScriptManager.RegisterStartupScript(this, GetType(), "alert", 
+                "alert('VC Request Created Successfully!'); window.location='../Dashboard.aspx';", true);
         }
 
 
@@ -327,53 +328,69 @@ namespace VCBooking
 
         private void LoadAvailableAccounts()
         {
-            if (ddlVCType.SelectedValue == "" ||
-                string.IsNullOrEmpty(txtDate.Text) ||
-                string.IsNullOrEmpty(txtFrom.Text) ||
-                string.IsNullOrEmpty(txtTo.Text))
+            try
             {
-                ddlVCAccount.Items.Clear();
-                ddlVCAccount.Items.Insert(0, new ListItem("-- Select Account --", ""));
-                return;
+                if (ddlVCType.SelectedValue == "" ||
+                    string.IsNullOrEmpty(txtDate.Text) ||
+                    string.IsNullOrEmpty(txtFrom.Text) ||
+                    string.IsNullOrEmpty(txtTo.Text))
+                {
+                    ddlVCAccount.Items.Clear();
+                    ddlVCAccount.Items.Insert(0, new ListItem("-- Select Account --", ""));
+                    return;
+                }
+
+                string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
+
+                using (SqlConnection conn = new SqlConnection(connStr))
+                {
+                    // 🔹 Query excludes already booked and active meetings
+                    // We ignore 'Cancelled' and 'Completed' statuses
+                    string query = @"
+            SELECT a.VCAccountId, a.VCAccountName
+            FROM VC_Account_Master a
+            WHERE a.VCTypeId = @VCTypeId
+            AND a.Status = 'Active'
+            AND NOT EXISTS
+            (
+                SELECT 1
+                FROM VCRequestHeader h
+                WHERE h.VCAccountId = a.VCAccountId
+                AND h.VCStatus NOT IN ('Cancelled', 'Completed')
+                AND CAST(h.VCDate AS DATE) = CAST(@NewFromTime AS DATE)
+                AND (@NewFromTime < h.ToTime AND @NewToTime > h.FromTime)
+            )";
+
+                    SqlCommand cmd = new SqlCommand(query, conn);
+                    cmd.Parameters.AddWithValue("@VCTypeId", ddlVCType.SelectedValue);
+
+                    // 🔹 Robust Parsing
+                    DateTime newFrom, newTo;
+                    if (!DateTime.TryParse(txtDate.Text + " " + txtFrom.Text, out newFrom) ||
+                        !DateTime.TryParse(txtDate.Text + " " + txtTo.Text, out newTo))
+                    {
+                        return; // Invalid format
+                    }
+
+                    cmd.Parameters.Add("@NewFromTime", SqlDbType.DateTime).Value = newFrom;
+                    cmd.Parameters.Add("@NewToTime", SqlDbType.DateTime).Value = newTo;
+
+                    conn.Open();
+                    SqlDataReader reader = cmd.ExecuteReader();
+
+                    ddlVCAccount.DataSource = reader;
+                    ddlVCAccount.DataTextField = "VCAccountName";
+                    ddlVCAccount.DataValueField = "VCAccountId";
+                    ddlVCAccount.DataBind();
+
+                    ddlVCAccount.Items.Insert(0, new ListItem("-- Select Account --", ""));
+                }
             }
-
-            string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
-
-            using (SqlConnection conn = new SqlConnection(connStr))
+            catch (Exception ex)
             {
-                string query = @"
-        SELECT a.VCAccountId, a.VCAccountName
-        FROM VC_Account_Master a
-        WHERE a.VCTypeId = @VCTypeId
-        AND a.Status = 'Active'
-        AND NOT EXISTS
-        (
-            SELECT 1
-            FROM VCRequestHeader h
-            WHERE h.VCAccountId = a.VCAccountId
-            AND (@NewFromTime < h.ToTime AND @NewToTime > h.FromTime)
-        )";
-
-                SqlCommand cmd = new SqlCommand(query, conn);
-
-                cmd.Parameters.AddWithValue("@VCTypeId", ddlVCType.SelectedValue);
-
-                DateTime newFrom = DateTime.Parse(txtDate.Text + " " + txtFrom.Text);
-                DateTime newTo = DateTime.Parse(txtDate.Text + " " + txtTo.Text);
-
-                cmd.Parameters.Add("@NewFromTime", SqlDbType.DateTime).Value = newFrom;
-                cmd.Parameters.Add("@NewToTime", SqlDbType.DateTime).Value = newTo;
-
-                conn.Open();
-
-                SqlDataReader reader = cmd.ExecuteReader();
-
-                ddlVCAccount.DataSource = reader;
-                ddlVCAccount.DataTextField = "VCAccountName";
-                ddlVCAccount.DataValueField = "VCAccountId";
-                ddlVCAccount.DataBind();
-
-                ddlVCAccount.Items.Insert(0, new ListItem("-- Select Account --", ""));
+                System.Diagnostics.Debug.WriteLine("Error loading accounts: " + ex.Message);
+                ddlVCAccount.Items.Clear();
+                ddlVCAccount.Items.Insert(0, new ListItem("-- Error Loading Accounts --", ""));
             }
         }
 
@@ -402,11 +419,11 @@ namespace VCBooking
                 SqlCommand cmd = new SqlCommand(query, conn);
                 SqlDataReader reader = await cmd.ExecuteReaderAsync();
 
-                var expiredMeetings = new List<(string VCId, string MeetingId)>();
+                var expiredMeetings = new List<Tuple<string, string>>();
 
                 while (await reader.ReadAsync())
                 {
-                    expiredMeetings.Add((
+                    expiredMeetings.Add(new Tuple<string, string>(
                         reader["VCId"].ToString(),
                         reader["MeetingId"].ToString()
                     ));
@@ -421,7 +438,7 @@ namespace VCBooking
                     try
                     {
 
-                        await zoomService.DeleteMeetingAsync(meeting.MeetingId);
+                        await zoomService.DeleteMeetingAsync(meeting.Item2);
 
                         string updateQuery = @"
                     UPDATE VCRequestHeader
@@ -430,13 +447,13 @@ namespace VCBooking
                     WHERE VCId = @VCId";
 
                         SqlCommand updateCmd = new SqlCommand(updateQuery, conn);
-                        updateCmd.Parameters.AddWithValue("@VCId", meeting.VCId);
+                        updateCmd.Parameters.AddWithValue("@VCId", meeting.Item1);
 
                         await updateCmd.ExecuteNonQueryAsync();
                     }
-                    catch
+                    catch (Exception ex)
                     {
-                        Response.Write("Error Occured in createRequest page");
+                        System.Diagnostics.Debug.WriteLine("Error Occured in createRequest page: " + ex.Message);
                     }
                 }
             }

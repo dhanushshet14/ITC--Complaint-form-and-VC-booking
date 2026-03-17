@@ -15,7 +15,7 @@ namespace VCBooking
             {
                 Response.Redirect("~/Login.aspx");
             }
-            lblWelcome.Text = "Welcome," + Session["username"];
+            lblWelcome.Text = ""+Session["username"];
         }
 
         protected void btnClick_createVCRequest(object sender, EventArgs e)

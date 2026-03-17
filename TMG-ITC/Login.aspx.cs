@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Configuration;
 using System.Data.SqlClient;
 using System.Web.UI;
@@ -20,17 +20,48 @@ namespace TMG_ITC
 
             using (SqlConnection con = new SqlConnection(connStr))
             {
-                string query = "SELECT COUNT(*) FROM TBL_EmployeeDetails WHERE EMP_Empcode = @EmpCode AND EMP_DomainUsername = @EmpCode";
+                string query = "SELECT EMP_Name, EMP_EmailId FROM TBL_EmployeeDetails WHERE EMP_Empcode = @EmpCode AND EMP_DomainUsername = @EmpCode";
 
                 SqlCommand cmd = new SqlCommand(query, con);
                 cmd.Parameters.AddWithValue("@EmpCode", empCode);
 
                 con.Open();
-                int count = (int)cmd.ExecuteScalar();
+                bool isAuthenticated = false;
+                string userName = "";
+                string userEmail = "";
 
-                if (count > 0)
+                using (SqlDataReader reader = cmd.ExecuteReader())
                 {
-                    Session["EmployeeCode"]= empCode;
+                    if (reader.Read())
+                    {
+                        isAuthenticated = true;
+                        userName = reader["EMP_Name"].ToString();
+                        userEmail = reader["EMP_EmailId"].ToString();
+                    }
+                } // First reader closes here
+
+                if (isAuthenticated)
+                {
+                    Session["EmployeeCode"] = empCode;
+                    Session["UserName"] = userName;
+                    Session["UserEmail"] = userEmail;
+                    
+                    // Check if Admin requires the connection to be free of open readers
+                    bool isAdmin = false;
+                    string adminQuery = "SELECT 1 FROM TBL_VC_Admins WHERE EmpCode = @EmpCode";
+                    using (SqlCommand adminCmd = new SqlCommand(adminQuery, con))
+                    {
+                        adminCmd.Parameters.AddWithValue("@EmpCode", empCode);
+                        using (SqlDataReader adminReader = adminCmd.ExecuteReader())
+                        {
+                            if (adminReader.Read())
+                            {
+                                isAdmin = true;
+                            }
+                        }
+                    }
+                    Session["IsAdmin"] = isAdmin;
+
                     Response.Redirect("~/Dashboard.aspx");
                 }
                 else

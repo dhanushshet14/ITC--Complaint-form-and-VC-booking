@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="CreateVCRequest.aspx.cs" Inherits="VCBooking.CreateVCRequest" Async="true" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="CreateVCRequest.aspx.cs" Inherits="VCBooking.CreateVCRequest" Async="true" %>
 
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -11,6 +11,9 @@
 <body class="bg-light">
 
     <form id="form1" runat="server">
+        <asp:ScriptManager runat="server" />
+        <asp:UpdatePanel runat="server" ID="UpdatePanel1">
+            <ContentTemplate>
 
         <div class="container mt-5 mb-5">
 
@@ -100,9 +103,8 @@
                 <div class="row mb-3">
                     <div class="col-md-8">
                         <asp:TextBox runat="server" ID="txtParticipant"
-                            TextMode="Email"
                             CssClass="form-control"
-                            placeholder="Enter participant email" />
+                            placeholder="Enter email OR multiple emails separated by comma" />
                     </div>
 
                     <div class="col-md-4">
@@ -128,12 +130,19 @@
                         ID="btnFormSubmit"
                         Text="Create VC Request"
                         OnClick="btnFormSubmit_Click"
+                        UseSubmitBehavior="false"
+                        OnClientClick="this.disabled=true; this.value='Processing...';"
                         CssClass="btn btn-primary btn-lg px-5" />
                 </div>
 
             </div>
         </div>
 
+            </ContentTemplate>
+            <Triggers>
+                <asp:PostBackTrigger ControlID="btnFormSubmit" />
+            </Triggers>
+        </asp:UpdatePanel>
     </form>
 </body>
 </html>

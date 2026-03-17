@@ -22,6 +22,10 @@ namespace TMG_ITC
         {
             Response.Redirect("~/VCBooking/EmployeeDashboard.aspx");
         }
+        protected void btnAdminDashboard_Click(object sender, EventArgs e)
+        {
+            Response.Redirect("~/VCBooking/AdminDashboard.aspx");
+        }
 
         protected void btnLogout_Click(object sender, EventArgs e)
         {

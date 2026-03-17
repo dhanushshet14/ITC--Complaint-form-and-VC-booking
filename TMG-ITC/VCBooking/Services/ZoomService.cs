@@ -1,57 +1,69 @@
-﻿using Newtonsoft.Json.Linq;
+using Newtonsoft.Json;
 using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using System.Linq;
 
 namespace VCBooking.Services
 {
     public class ZoomService
     {
+        private readonly string _accountId;
+        private readonly string _clientId;
+        private readonly string _clientSecret;
+
+        public ZoomService()
+        {
+            _accountId = ConfigurationManager.AppSettings["ZoomAccountId"];
+            _clientId = ConfigurationManager.AppSettings["Zoom:ClientId"];
+            _clientSecret = ConfigurationManager.AppSettings["Zoom:ClientSecret"];
+        }
+
+        /// <summary>
+        /// Get Zoom Access Token (Server-to-Server OAuth)
+        /// </summary>
         public async Task<string> GetAccessTokenAsync()
         {
-            string clientId = ConfigurationManager.AppSettings["ZoomClientId"];
-            string clientSecret = ConfigurationManager.AppSettings["ZoomClientSecret"];
-            string refreshToken = ConfigurationManager.AppSettings["ZoomRefreshToken"];
-
             using (var client = new HttpClient())
             {
-                var byteArray = Encoding.ASCII.GetBytes($"{clientId}:{clientSecret}");
+                var authHeader = Convert.ToBase64String(
+                    Encoding.UTF8.GetBytes(string.Format("{0}:{1}", _clientId, _clientSecret))
+                );
+
                 client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue(
-                        "Basic",
-                        Convert.ToBase64String(byteArray));
+                    new AuthenticationHeaderValue("Basic", authHeader);
 
-                var content = new StringContent(
-                    $"grant_type=refresh_token&refresh_token={refreshToken}",
-                    Encoding.UTF8,
-                    "application/x-www-form-urlencoded");
+                var url =
+                    string.Format("https://zoom.us/oauth/token?grant_type=account_credentials&account_id={0}", _accountId);
 
-                var response = await client.PostAsync("https://zoom.us/oauth/token", content);
-                var responseString = await response.Content.ReadAsStringAsync();
+                var response = await client.PostAsync(url, null);
+                var content = await response.Content.ReadAsStringAsync();
 
-                var json = JObject.Parse(responseString);
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception("Zoom Auth Failed: " + content);
 
-                string newAccessToken = json["access_token"].ToString();
-                string newRefreshToken = json["refresh_token"].ToString();
+                dynamic tokenData = JsonConvert.DeserializeObject(content);
 
-
-                return newAccessToken;
+                return tokenData.access_token;
             }
         }
 
-
-        public async Task<JObject> CreateMeetingAsync(string topic,DateTime startTime,int durationMinutes,string createdByName,string createdByEmail)
+        /// <summary>
+        /// Create Zoom Meeting
+        /// </summary>
+        public async Task<MeetingResponse> CreateMeetingAsync(
+            string topic,
+            DateTime startTime,
+            int durationMinutes)
         {
-            string accessToken = await GetAccessTokenAsync();
+            string token = await GetAccessTokenAsync();
 
             using (var client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                    new AuthenticationHeaderValue("Bearer", token);
 
                 var meetingData = new
                 {
@@ -60,39 +72,154 @@ namespace VCBooking.Services
                     start_time = startTime.ToString("yyyy-MM-ddTHH:mm:ss"),
                     duration = durationMinutes,
                     timezone = "Asia/Kolkata",
-                    agenda = $"Meeting created by: {createdByName} ({createdByEmail})"
+                    settings = new
+                    {
+                        host_video = true,
+                        participant_video = true,
+                        join_before_host = false,
+                        mute_upon_entry = true,
+                        waiting_room = true
+                    }
                 };
 
-                string json = Newtonsoft.Json.JsonConvert.SerializeObject(meetingData);
+                var json = JsonConvert.SerializeObject(meetingData);
 
-                var content = new StringContent(json, Encoding.UTF8, "application/json");
+                var content = new StringContent(
+                    json,
+                    Encoding.UTF8,
+                    "application/json"
+                );
 
-                var response = await client.PostAsync("https://api.zoom.us/v2/users/me/meetings", content);
-                var responseString = await response.Content.ReadAsStringAsync();
+                var response = await client.PostAsync(
+                    "https://api.zoom.us/v2/users/me/meetings",
+                    content
+                );
 
-                return JObject.Parse(responseString);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception("Zoom Meeting Creation Failed: " + responseContent);
+
+                return JsonConvert.DeserializeObject<MeetingResponse>(responseContent);
             }
         }
 
-        public async Task DeleteMeetingAsync(string meetingId)
+        /// <summary>
+        /// Update Zoom Meeting
+        /// </summary>
+        public async Task UpdateMeetingAsync(
+            string meetingId,
+            string topic,
+            DateTime startTime,
+            int durationMinutes)
         {
-            string accessToken = await GetAccessTokenAsync();
+            string token = await GetAccessTokenAsync();
 
             using (var client = new HttpClient())
             {
                 client.DefaultRequestHeaders.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", accessToken);
+                    new AuthenticationHeaderValue("Bearer", token);
 
-                var response = await client.DeleteAsync($"https://api.zoom.us/v2/meetings/{meetingId}");
+                var meetingData = new
+                {
+                    topic = topic,
+                    start_time = startTime.ToString("yyyy-MM-ddTHH:mm:ss"),
+                    duration = durationMinutes,
+                    timezone = "Asia/Kolkata"
+                };
+
+                var json = JsonConvert.SerializeObject(meetingData);
+
+                var request = new HttpRequestMessage(
+                    new HttpMethod("PATCH"),
+                    string.Format("https://api.zoom.us/v2/meetings/{0}", meetingId)
+                );
+
+                request.Content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = await client.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)
                 {
-                    string error = await response.Content.ReadAsStringAsync();
-                    throw new Exception("Zoom delete failed: " + error);
+                    var error = await response.Content.ReadAsStringAsync();
+                    throw new Exception("Zoom Meeting Update Failed: " + error);
                 }
             }
         }
 
+        /// <summary>
+        /// Delete Zoom Meeting
+        /// </summary>
+        public async Task DeleteMeetingAsync(string meetingId)
+        {
+            string token = await GetAccessTokenAsync();
 
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token);
+
+                var response = await client.DeleteAsync(
+                    string.Format("https://api.zoom.us/v2/meetings/{0}", meetingId)
+                );
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+                    {
+                        try
+                        {
+                            dynamic errorObj = JsonConvert.DeserializeObject(error);
+                            if (errorObj != null && errorObj.code != null && errorObj.code.ToString() == "3001")
+                            {
+                                // Meeting is already deleted or does not exist, safe to ignore
+                                return;
+                            }
+                        }
+                        catch
+                        {
+                            // If it fails to parse but is a 404, we might still want to ignore it 
+                            // depending on how strict we want to be, but let's fall through to throw 
+                            // if it's not explicitly the "Meeting Not Found" error code.
+                        }
+                    }
+                    throw new Exception("Zoom Delete Failed: " + error);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Get Zoom Meeting
+        /// </summary>
+        public async Task<MeetingResponse> GetMeetingAsync(string meetingId)
+        {
+            string token = await GetAccessTokenAsync();
+
+            using (var client = new HttpClient())
+            {
+                client.DefaultRequestHeaders.Authorization =
+                    new AuthenticationHeaderValue("Bearer", token);
+
+                var response = await client.GetAsync(
+                    string.Format("https://api.zoom.us/v2/meetings/{0}", meetingId)
+                );
+
+                var content = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                    throw new Exception("Zoom Get Meeting Failed: " + content);
+
+                return JsonConvert.DeserializeObject<MeetingResponse>(content);
+            }
+        }
+
+        public class MeetingResponse
+        {
+            public string id { get; set; }
+            public string join_url { get; set; }
+            public string start_url { get; set; }
+            public string password { get; set; }
+        }
     }
 }
