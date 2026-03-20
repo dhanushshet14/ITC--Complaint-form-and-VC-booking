@@ -4,13 +4,14 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Threading.Tasks;
+using System.Web.UI;
 using System.Web.UI.WebControls;
 
 namespace VCBooking
 {
     public partial class AdminDashboard : System.Web.UI.Page
     {
-        protected void Page_Load(object sender, EventArgs e)
+        protected async void Page_Load(object sender, EventArgs e)
         {
             if (Session["EmployeeCode"] == null)
             {
@@ -22,7 +23,73 @@ namespace VCBooking
             }
             if (!IsPostBack)
             {
+                await CleanupExpiredMeetings();
                 LoadMeetings();
+            }
+        }
+
+        /// <summary>
+        /// Auto-cleanup: Mark expired Booked/Rescheduled meetings as Completed
+        /// and delete Zoom meeting (DB entry stays).
+        /// Runs 10 min after ToTime.
+        /// </summary>
+        private async Task CleanupExpiredMeetings()
+        {
+            try
+            {
+                using (SqlConnection con = new SqlConnection(
+                    ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString))
+                {
+                    await con.OpenAsync();
+
+                    string query = @"
+                        SELECT VCId, MeetingId
+                        FROM VCRequestHeader
+                        WHERE DATEADD(MINUTE, 10, ToTime) < GETDATE()
+                        AND VCStatus IN ('Booked', 'Rescheduled')
+                        AND MeetingId IS NOT NULL";
+
+                    SqlCommand cmd = new SqlCommand(query, con);
+                    SqlDataReader reader = await cmd.ExecuteReaderAsync();
+
+                    var expiredMeetings = new List<Tuple<string, string>>();
+                    while (await reader.ReadAsync())
+                    {
+                        expiredMeetings.Add(new Tuple<string, string>(
+                            reader["VCId"].ToString(),
+                            reader["MeetingId"].ToString()
+                        ));
+                    }
+                    reader.Close();
+
+                    var zoomService = new Services.ZoomService();
+
+                    foreach (var meeting in expiredMeetings)
+                    {
+                        try
+                        {
+                            await zoomService.DeleteMeetingAsync(meeting.Item2);
+
+                            string updateQuery = @"
+                                UPDATE VCRequestHeader
+                                SET VCStatus = 'Completed',
+                                    APIStatus = 'Deleted'
+                                WHERE VCId = @VCId";
+
+                            SqlCommand updateCmd = new SqlCommand(updateQuery, con);
+                            updateCmd.Parameters.AddWithValue("@VCId", meeting.Item1);
+                            await updateCmd.ExecuteNonQueryAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            System.Diagnostics.Debug.WriteLine("Cleanup error: " + ex.Message);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("CleanupExpiredMeetings error: " + ex.Message);
             }
         }
 
@@ -31,10 +98,25 @@ namespace VCBooking
             using (SqlConnection con = new SqlConnection(
                 ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString))
             {
-                string query = @"SELECT VCId, Topic, VCDate, VCStatus, CreatedBy
-                 FROM VCRequestHeader
-                 WHERE VCStatus <> 'Cancelled'
-                 ORDER BY CreatedDate DESC";
+                string query = @"
+                 SELECT 
+                 h.VCId,
+                 c.CompanyName,
+                 t.VCTypeName,
+                 a.VCAccountName,
+                 h.Topic,
+                 h.VCDate,
+                 h.FromTime,
+                 h.ToTime,
+                 l.LocationName,
+                 h.VCStatus,
+                 h.CreatedBy
+                 FROM VCRequestHeader h
+                 JOIN Company_Master c ON h.CompanyId = c.CompanyId
+                 JOIN VC_Type_Master t ON h.VCTypeId = t.VCTypeId
+                 JOIN VC_Account_Master a ON h.VCAccountId = a.VCAccountId
+                 JOIN Location_Master l ON h.LocationId = l.LocationId
+                 ORDER BY h.CreatedDate DESC";
 
                 SqlDataAdapter da = new SqlDataAdapter(query, con);
                 DataTable dt = new DataTable();
@@ -42,6 +124,45 @@ namespace VCBooking
 
                 gvMeetings.DataSource = dt;
                 gvMeetings.DataBind();
+            }
+        }
+
+        protected void gvMeetings_RowDataBound(object sender, GridViewRowEventArgs e)
+        {
+            if (e.Row.RowType == DataControlRowType.DataRow)
+            {
+                string status = DataBinder.Eval(e.Row.DataItem, "VCStatus").ToString();
+                bool isTerminal = (status == "Cancelled" || status == "Completed");
+
+                // Disable Reschedule & Cancel for terminal statuses
+                Button btnReschedule = (Button)e.Row.FindControl("btnReschedule");
+                Button btnCancel = (Button)e.Row.FindControl("btnCancel");
+
+                if (btnReschedule != null)
+                {
+                    btnReschedule.Enabled = !isTerminal;
+                    if (isTerminal)
+                        btnReschedule.CssClass = "btn btn-primary btn-sm btn-disabled-custom";
+                }
+                if (btnCancel != null)
+                {
+                    btnCancel.Enabled = !isTerminal;
+                    if (isTerminal)
+                        btnCancel.CssClass = "btn btn-warning btn-sm btn-disabled-custom";
+                }
+
+                // Status badge styling
+                int statusIndex = 10; // VCStatus column index
+                string badgeClass = "badge bg-secondary";
+                switch (status)
+                {
+                    case "Booked": badgeClass = "badge bg-success"; break;
+                    case "Rescheduled": badgeClass = "badge bg-info text-dark"; break;
+                    case "Cancelled": badgeClass = "badge bg-danger"; break;
+                    case "Completed": badgeClass = "badge bg-dark"; break;
+                    case "New": badgeClass = "badge bg-primary"; break;
+                }
+                e.Row.Cells[statusIndex].Text = string.Format("<span class='{0}'>{1}</span>", badgeClass, status);
             }
         }
 
@@ -79,20 +200,17 @@ namespace VCBooking
             if (e.CommandName == "RescheduleMeeting")
             {
                 hfRescheduleVCId.Value = vcId;
-                pnlReschedule.Visible = true;
-                pnlCancel.Visible = false;
                 LoadMeetingDetailsForReschedule(vcId);
+                ClientScript.RegisterStartupScript(this.GetType(), "ShowReschedule", "window.onload = function() { openRescheduleModal(); };", true);
             }
             else if (e.CommandName == "CancelMeeting")
             {
-                hfCancelVCId.Value = vcId;
-                pnlCancel.Visible = true;
-                pnlReschedule.Visible = false;
+                // This is now purely handled via client-side JS (showCancelModal) 
+                // but we keep this stub just in case of postback override
             }
             else if (e.CommandName == "DeleteMeeting")
             {
-                await DeleteMeetingPermanently(vcId);
-                LoadMeetings();
+                // This is now handled by btnConfirmDelete_Click and the Bootstrap modal
             }
         }
 
@@ -143,7 +261,6 @@ namespace VCBooking
                     details.Topic, details.Date, details.FromTime, details.ToTime,
                     details.MeetingId, reason, details.Participants);
 
-                pnlCancel.Visible = false;
                 txtCancelReason.Text = "";
                 LoadMeetings();
             }
@@ -199,7 +316,39 @@ namespace VCBooking
                     details.JoinUrl, details.MeetingId, details.Password,
                     reason, details.Participants);
 
-                pnlReschedule.Visible = false;
+                LoadMeetings();
+            }
+            catch (Exception ex)
+            {
+                Response.Write("<script>alert('Error: " + ex.Message.Replace("'", "") + "');</script>");
+            }
+        }
+
+        protected async void btnConfirmDelete_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                string vcId = hfDeleteVCId.Value;
+                if (string.IsNullOrEmpty(vcId)) return;
+
+                // Re-check status before delete (backend validation)
+                using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString))
+                {
+                    string statusQuery = "SELECT VCStatus FROM VCRequestHeader WHERE VCId = @Id";
+                    SqlCommand cmd = new SqlCommand(statusQuery, con);
+                    cmd.Parameters.AddWithValue("@Id", vcId);
+                    con.Open();
+                    object result = cmd.ExecuteScalar();
+                    string status = result != null ? result.ToString() : null;
+                    
+                    if (status != "Completed" && status != "Cancelled")
+                    {
+                        Response.Write("<script>alert('Error: Only Completed or Cancelled meetings can be deleted.');</script>");
+                        return; // prevent unsafe delete
+                    }
+                }
+
+                await DeleteMeetingPermanently(vcId);
                 LoadMeetings();
             }
             catch (Exception ex)
@@ -227,7 +376,7 @@ namespace VCBooking
         {
             using (SqlConnection con = new SqlConnection(ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString))
             {
-                string query = "UPDATE VCRequestHeader SET VCDate = @Date, FromTime = @From, ToTime = @To WHERE VCId = @VCId";
+                string query = "UPDATE VCRequestHeader SET VCDate = @Date, FromTime = @From, ToTime = @To, VCStatus = 'Rescheduled' WHERE VCId = @VCId";
                 SqlCommand cmd = new SqlCommand(query, con);
                 cmd.Parameters.AddWithValue("@Date", date);
                 cmd.Parameters.AddWithValue("@From", from);
@@ -345,11 +494,7 @@ namespace VCBooking
             return list;
         }
 
-        protected void btnCancelPopup_Click(object sender, EventArgs e)
-        {
-            pnlCancel.Visible = false;
-            pnlReschedule.Visible = false;
-        }
+
 
         private class MeetingDetails
         {

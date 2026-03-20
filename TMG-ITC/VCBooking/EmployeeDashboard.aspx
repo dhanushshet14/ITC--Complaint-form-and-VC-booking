@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="EmployeeDashboard.aspx.cs" Inherits="VCBooking.Dashboard" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="EmployeeDashboard.aspx.cs" Inherits="VCBooking.Dashboard" %>
 
 <!DOCTYPE html>
 
@@ -61,6 +61,13 @@
                 CssClass="btn btn-success"
                 Text="View My Requests"
                 OnClick="btnClick_viewRequests" />
+
+            <asp:Button runat="server"
+                ID="btnAdminDashboard"
+                CssClass="btn btn-warning"
+                Text="Admin Dashboard (View All)"
+                Visible="false"
+                OnClick="btnClick_adminDashboard" />
 
             <asp:Button runat="server"
                 ID="btnLogOut"

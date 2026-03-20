@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
@@ -15,7 +15,17 @@ namespace VCBooking
             {
                 Response.Redirect("~/Login.aspx");
             }
-            lblWelcome.Text = ""+Session["username"];
+
+            if (!IsPostBack)
+            {
+                lblWelcome.Text = "" + Session["username"];
+
+                // Show Admin Dashboard button only for admins
+                if (Session["IsAdmin"] != null && (bool)Session["IsAdmin"])
+                {
+                    btnAdminDashboard.Visible = true;
+                }
+            }
         }
 
         protected void btnClick_createVCRequest(object sender, EventArgs e)
@@ -26,6 +36,11 @@ namespace VCBooking
         protected void btnClick_viewRequests(object sender, EventArgs e)
         {
             Response.Redirect("ViewRequests.aspx");
+        }
+
+        protected void btnClick_adminDashboard(object sender, EventArgs e)
+        {
+            Response.Redirect("AdminDashboard.aspx");
         }
 
         protected void btnClick_LogOut(object sender, EventArgs e)

@@ -1,4 +1,4 @@
-﻿<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Dashboard.aspx.cs" Inherits="TMG_ITC.Dashboard" %>
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Dashboard.aspx.cs" Inherits="TMG_ITC.Dashboard" %>
 
     <!DOCTYPE html>
     <html xmlns="http://www.w3.org/1999/xhtml">
@@ -25,8 +25,7 @@
                         <asp:Button ID="btnVCBooking" runat="server" Text="VC Booking" CssClass="btn btn-primary"
                             OnClick="btnVCBooking_Click" />
 
-                        <asp:Button ID="btnAdminDashboard" runat="server" Text="Admin Dashboard (View All)"
-                            CssClass="btn btn-warning" OnClick="btnAdminDashboard_Click" />
+
 
                     </div>
 

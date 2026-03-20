@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
@@ -21,13 +21,19 @@ namespace VCBooking
             if (!IsPostBack)
             {
                 LoadRequests();
+
+                // Show success modal if redirected from meeting creation
+                if (Request.QueryString["success"] == "1")
+                {
+                    hdnShowSuccess.Value = "1";
+                }
             }
         }
 
         protected void LoadRequests()
         {
-
             string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
+            string currentUser = Session["UserName"] != null ? Session["UserName"].ToString() : "";
 
             using (SqlConnection conn = new SqlConnection(connStr))
             {
@@ -49,17 +55,19 @@ namespace VCBooking
                  JOIN VC_Type_Master t ON h.VCTypeId = t.VCTypeId
                  JOIN VC_Account_Master a ON h.VCAccountId = a.VCAccountId
                  JOIN Location_Master l ON h.LocationId = l.LocationId
+                 WHERE h.CreatedBy = @CreatedBy
                  ORDER BY h.CreatedDate DESC";
 
+                SqlCommand cmd = new SqlCommand(query, conn);
+                cmd.Parameters.AddWithValue("@CreatedBy", currentUser);
 
-                SqlDataAdapter da = new SqlDataAdapter(query, conn);
+                SqlDataAdapter da = new SqlDataAdapter(cmd);
                 DataTable dt = new DataTable();
                 da.Fill(dt);
 
                 gvRequests.DataSource = dt;
                 gvRequests.DataBind();
             }
-
         }
     }
 }

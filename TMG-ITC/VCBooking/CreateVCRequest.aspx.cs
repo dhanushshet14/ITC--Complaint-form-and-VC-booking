@@ -121,205 +121,172 @@ namespace VCBooking
 
         protected async void btnFormSubmit_Click(object sender, EventArgs e)
         {
-            if (ddlCompany.SelectedValue == "" ||
-                ddlVCType.SelectedValue == "" ||
-                ddlVCAccount.SelectedValue == "" ||
-                ddlLocation.SelectedValue == "" ||
-                string.IsNullOrEmpty(txtTopic.Text) ||
-                string.IsNullOrEmpty(txtDate.Text) ||
-                string.IsNullOrEmpty(txtFrom.Text) ||
-                string.IsNullOrEmpty(txtTo.Text))
-            {
-                ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Please fill all required fields');", true);
-                return;
-            }
-
-            DataTable dt = ViewState["Participants"] as DataTable;
-
-            if (dt == null || dt.Rows.Count == 0)
-            {
-                ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Add at least one participant');", true);
-                return;
-            }
-
-            string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
-
-            List<string> participantEmails = new List<string>();
-            foreach (DataRow row in dt.Rows)
-                participantEmails.Add(row["ParticipantEmail"].ToString());
-
-            string createdByName = Session["UserName"] != null ? Session["UserName"].ToString() : null;
-            string createdByEmail = Session["UserEmail"] != null ? Session["UserEmail"].ToString() : null;
-
-            if (string.IsNullOrEmpty(createdByName) || string.IsNullOrEmpty(createdByEmail))
-            {
-                Response.Redirect("Login.aspx");
-                return;
-            }
-
-            string meetingId = "";
-            string joinUrl = "";
-            string startUrl = "";
-            string password = "";
-            DateTime fullFromDateTime;
-            DateTime fullToDateTime;
-
-            using (SqlConnection conn = new SqlConnection(connStr))
-            {
-                await conn.OpenAsync();
-                SqlTransaction transaction = conn.BeginTransaction();
-
-                try
-                {
-                    // 🔹 Generate VCId
-                    string newVCId = "";
-                    string getLastIdQuery = "SELECT TOP 1 VCId FROM VCRequestHeader ORDER BY VCId DESC";
-
-                    SqlCommand cmdGetId = new SqlCommand(getLastIdQuery, conn, transaction);
-                    object result = cmdGetId.ExecuteScalar();
-
-                    if (result == null)
-                        newVCId = "VC001";
-                    else
-                    {
-                        string lastId = result.ToString();
-                        int number = int.Parse(lastId.Substring(2)) + 1;
-                        newVCId = "VC" + number.ToString("D3");
-                    }
-
-                    fullFromDateTime = DateTime.Parse(txtDate.Text + " " + txtFrom.Text);
-                    fullToDateTime = DateTime.Parse(txtDate.Text + " " + txtTo.Text);
-
-                    // 🔹 Overlap check (Ignore Cancelled/Completed)
-                    string overlapCheckQuery = @"
-                SELECT COUNT(*)
-                FROM VCRequestHeader
-                WHERE VCAccountId = @VCAccountId
-                AND VCStatus NOT IN ('Cancelled', 'Completed')
-                AND CAST(VCDate AS DATE) = CAST(@NewFromTime AS DATE)
-                AND (@NewFromTime < ToTime AND @NewToTime > FromTime)";
-
-                    SqlCommand cmdCheck = new SqlCommand(overlapCheckQuery, conn, transaction);
-                    cmdCheck.Parameters.AddWithValue("@VCAccountId", ddlVCAccount.SelectedValue);
-                    cmdCheck.Parameters.Add("@NewFromTime", SqlDbType.DateTime).Value = fullFromDateTime;
-                    cmdCheck.Parameters.Add("@NewToTime", SqlDbType.DateTime).Value = fullToDateTime;
-
-                    int overlapCount = (int)cmdCheck.ExecuteScalar();
-
-                    if (overlapCount > 0)
-                    {
-                        transaction.Rollback();
-                        ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Selected VC Account is already booked!');", true);
-                        return;
-                    }
-
-                    // 🔹 Insert Header
-                    string insertHeaderQuery = @"
-                INSERT INTO VCRequestHeader
-                (VCId, CompanyId, VCTypeId, VCAccountId, Topic, VCDate, FromTime, ToTime, LocationId, VCStatus, CreatedBy, CreatedDate)
-                VALUES
-                (@VCId, @CompanyId, @VCTypeId, @VCAccountId, @Topic, @VCDate, @FromTime, @ToTime, @LocationId, 'New', @CreatedBy, GETDATE())";
-
-                    SqlCommand cmdHeader = new SqlCommand(insertHeaderQuery, conn, transaction);
-
-                    cmdHeader.Parameters.AddWithValue("@VCId", newVCId);
-                    cmdHeader.Parameters.AddWithValue("@CompanyId", ddlCompany.SelectedValue);
-                    cmdHeader.Parameters.AddWithValue("@VCTypeId", ddlVCType.SelectedValue);
-                    cmdHeader.Parameters.AddWithValue("@VCAccountId", ddlVCAccount.SelectedValue);
-                    cmdHeader.Parameters.AddWithValue("@Topic", txtTopic.Text.Trim());
-                    cmdHeader.Parameters.Add("@VCDate", SqlDbType.DateTime).Value = DateTime.Parse(txtDate.Text);
-                    cmdHeader.Parameters.Add("@FromTime", SqlDbType.DateTime).Value = fullFromDateTime;
-                    cmdHeader.Parameters.Add("@ToTime", SqlDbType.DateTime).Value = fullToDateTime;
-                    cmdHeader.Parameters.AddWithValue("@LocationId", ddlLocation.SelectedValue);
-                    cmdHeader.Parameters.AddWithValue("@CreatedBy", createdByName);
-
-                    cmdHeader.ExecuteNonQuery();
-
-                    // 🔹 Insert Participants
-                    foreach (string email in participantEmails)
-                    {
-                        SqlCommand cmdParticipant = new SqlCommand(@"
-                    INSERT INTO VCParticipants
-                    (VCId, ParticipantEmail, CreatedBy, CreatedDate)
-                    VALUES
-                    (@VCId, @ParticipantEmail, @CreatedBy, GETDATE())",
-                            conn, transaction);
-
-                        cmdParticipant.Parameters.AddWithValue("@VCId", newVCId);
-                        cmdParticipant.Parameters.AddWithValue("@ParticipantEmail", email);
-                        cmdParticipant.Parameters.AddWithValue("@CreatedBy", createdByName);
-                        cmdParticipant.ExecuteNonQuery();
-                    }
-
-                    // 🔹 Call Zoom
-                    var zoomService = new VCBooking.Services.ZoomService();
-
-                    var zoomResponse = await zoomService.CreateMeetingAsync(
-                        txtTopic.Text.Trim(),
-                        fullFromDateTime,
-                        (int)(fullToDateTime - fullFromDateTime).TotalMinutes
-                    );
-
-                    meetingId = zoomResponse.id;
-                    joinUrl = zoomResponse.join_url;
-                    startUrl = zoomResponse.start_url;
-                    password = zoomResponse.password;
-
-                    // 🔹 Update Header with Zoom details
-                    SqlCommand cmdUpdateZoom = new SqlCommand(@"
-                UPDATE VCRequestHeader
-                SET MeetingId=@MeetingId,
-                    JoinUrl=@JoinUrl,
-                    HostUrl=@HostUrl,
-                    MeetingPassword=@MeetingPassword,
-                    Platform='Zoom',
-                    APIStatus='Success',
-                    VCStatus='Booked'
-                WHERE VCId=@VCId",
-                        conn, transaction);
-
-                    cmdUpdateZoom.Parameters.AddWithValue("@MeetingId", meetingId);
-                    cmdUpdateZoom.Parameters.AddWithValue("@JoinUrl", joinUrl);
-                    cmdUpdateZoom.Parameters.AddWithValue("@HostUrl", startUrl);
-                    cmdUpdateZoom.Parameters.AddWithValue("@MeetingPassword", password);
-                    cmdUpdateZoom.Parameters.AddWithValue("@VCId", newVCId);
-
-                    cmdUpdateZoom.ExecuteNonQuery();
-
-                    transaction.Commit();
-                }
-                catch
-                {
-                    if (transaction != null && transaction.Connection != null)
-                    {
-                        try { transaction.Rollback(); } catch { }
-                    }
-                    throw;
-                }
-            }
-
-            // 🔹 SEND EMAILS OUTSIDE TRANSACTION
-            var emailService = new VCBooking.Services.EmailService();
-            int duration = (int)(fullToDateTime - fullFromDateTime).TotalMinutes;
-
             try
             {
-                await emailService.SendMeetingInviteAsync(
-                    txtTopic.Text.Trim(),
-                    fullFromDateTime,
-                    duration,
-                    joinUrl,
-                    password,
-                    participantEmails);
+                if (ddlCompany.SelectedValue == "" ||
+                    ddlVCType.SelectedValue == "" ||
+                    ddlVCAccount.SelectedValue == "" ||
+                    ddlLocation.SelectedValue == "" ||
+                    string.IsNullOrEmpty(txtTopic.Text) ||
+                    string.IsNullOrEmpty(txtDate.Text) ||
+                    string.IsNullOrEmpty(txtFrom.Text) ||
+                    string.IsNullOrEmpty(txtTo.Text))
+                {
+                    ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Please fill all required fields');", true);
+                    return;
+                }
+
+                DataTable dt = ViewState["Participants"] as DataTable;
+                if (dt == null || dt.Rows.Count == 0)
+                {
+                    ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Add at least one participant');", true);
+                    return;
+                }
+
+                string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
+                List<string> participantEmails = new List<string>();
+                foreach (DataRow row in dt.Rows)
+                    participantEmails.Add(row["ParticipantEmail"].ToString());
+
+                string createdByName = Session["UserName"] != null ? Session["UserName"].ToString() : null;
+                string createdByEmail = Session["UserEmail"] != null ? Session["UserEmail"].ToString() : null;
+
+                if (string.IsNullOrEmpty(createdByName) || string.IsNullOrEmpty(createdByEmail))
+                {
+                    Response.Redirect("Login.aspx");
+                    return;
+                }
+
+                string meetingId = "";
+                string joinUrl = "";
+                string startUrl = "";
+                string password = "";
+                DateTime fullFromDateTime;
+                DateTime fullToDateTime;
+
+                using (SqlConnection conn = new SqlConnection(connStr))
+                {
+                    await conn.OpenAsync();
+                    using (SqlTransaction transaction = conn.BeginTransaction())
+                    {
+                        try
+                        {
+                            string newVCId = "";
+                            string getLastIdQuery = "SELECT TOP 1 VCId FROM VCRequestHeader ORDER BY VCId DESC";
+                            SqlCommand cmdGetId = new SqlCommand(getLastIdQuery, conn, transaction);
+                            object result = cmdGetId.ExecuteScalar();
+
+                            if (result == null)
+                                newVCId = "VC001";
+                            else
+                            {
+                                string lastId = result.ToString();
+                                int number = int.Parse(lastId.Substring(2)) + 1;
+                                newVCId = "VC" + number.ToString("D3");
+                            }
+
+                            fullFromDateTime = DateTime.Parse(txtDate.Text + " " + txtFrom.Text);
+                            fullToDateTime = DateTime.Parse(txtDate.Text + " " + txtTo.Text);
+
+                            string overlapCheckQuery = @"
+                                SELECT COUNT(*) FROM VCRequestHeader
+                                WHERE VCAccountId = @VCAccountId
+                                AND VCStatus NOT IN ('Cancelled', 'Completed')
+                                AND CAST(VCDate AS DATE) = CAST(@NewFromTime AS DATE)
+                                AND (@NewFromTime < ToTime AND @NewToTime > FromTime)";
+
+                            SqlCommand cmdCheck = new SqlCommand(overlapCheckQuery, conn, transaction);
+                            cmdCheck.Parameters.AddWithValue("@VCAccountId", ddlVCAccount.SelectedValue);
+                            cmdCheck.Parameters.Add("@NewFromTime", SqlDbType.DateTime).Value = fullFromDateTime;
+                            cmdCheck.Parameters.Add("@NewToTime", SqlDbType.DateTime).Value = fullToDateTime;
+
+                            if ((int)cmdCheck.ExecuteScalar() > 0)
+                            {
+                                transaction.Rollback();
+                                ScriptManager.RegisterStartupScript(this, GetType(), "alert", "alert('Selected VC Account is already booked!');", true);
+                                return;
+                            }
+
+                            string insertHeaderQuery = @"
+                                INSERT INTO VCRequestHeader
+                                (VCId, CompanyId, VCTypeId, VCAccountId, Topic, VCDate, FromTime, ToTime, LocationId, VCStatus, CreatedBy, CreatedDate)
+                                VALUES
+                                (@VCId, @CompanyId, @VCTypeId, @VCAccountId, @Topic, @VCDate, @FromTime, @ToTime, @LocationId, 'New', @CreatedBy, GETDATE())";
+
+                            SqlCommand cmdHeader = new SqlCommand(insertHeaderQuery, conn, transaction);
+                            cmdHeader.Parameters.AddWithValue("@VCId", newVCId);
+                            cmdHeader.Parameters.AddWithValue("@CompanyId", ddlCompany.SelectedValue);
+                            cmdHeader.Parameters.AddWithValue("@VCTypeId", ddlVCType.SelectedValue);
+                            cmdHeader.Parameters.AddWithValue("@VCAccountId", ddlVCAccount.SelectedValue);
+                            cmdHeader.Parameters.AddWithValue("@Topic", txtTopic.Text.Trim());
+                            cmdHeader.Parameters.Add("@VCDate", SqlDbType.DateTime).Value = DateTime.Parse(txtDate.Text);
+                            cmdHeader.Parameters.Add("@FromTime", SqlDbType.DateTime).Value = fullFromDateTime;
+                            cmdHeader.Parameters.Add("@ToTime", SqlDbType.DateTime).Value = fullToDateTime;
+                            cmdHeader.Parameters.AddWithValue("@LocationId", ddlLocation.SelectedValue);
+                            cmdHeader.Parameters.AddWithValue("@CreatedBy", createdByName);
+                            cmdHeader.ExecuteNonQuery();
+
+                            foreach (string email in participantEmails)
+                            {
+                                SqlCommand cmdParticipant = new SqlCommand(@"
+                                    INSERT INTO VCParticipants (VCId, ParticipantEmail, CreatedBy, CreatedDate)
+                                    VALUES (@VCId, @ParticipantEmail, @CreatedBy, GETDATE())", conn, transaction);
+                                cmdParticipant.Parameters.AddWithValue("@VCId", newVCId);
+                                cmdParticipant.Parameters.AddWithValue("@ParticipantEmail", email);
+                                cmdParticipant.Parameters.AddWithValue("@CreatedBy", createdByName);
+                                cmdParticipant.ExecuteNonQuery();
+                            }
+
+                            var zoomService = new VCBooking.Services.ZoomService();
+                            var zoomResponse = await zoomService.CreateMeetingAsync(
+                                txtTopic.Text.Trim(),
+                                fullFromDateTime,
+                                (int)(fullToDateTime - fullFromDateTime).TotalMinutes
+                            );
+
+                            meetingId = zoomResponse.id;
+                            joinUrl = zoomResponse.join_url;
+                            startUrl = zoomResponse.start_url;
+                            password = zoomResponse.password;
+
+                            SqlCommand cmdUpdateZoom = new SqlCommand(@"
+                                UPDATE VCRequestHeader
+                                SET MeetingId=@MeetingId, JoinUrl=@JoinUrl, HostUrl=@HostUrl,
+                                    MeetingPassword=@MeetingPassword, Platform='Zoom', APIStatus='Success', VCStatus='Booked'
+                                WHERE VCId=@VCId", conn, transaction);
+                            cmdUpdateZoom.Parameters.AddWithValue("@MeetingId", meetingId);
+                            cmdUpdateZoom.Parameters.AddWithValue("@JoinUrl", joinUrl);
+                            cmdUpdateZoom.Parameters.AddWithValue("@HostUrl", startUrl);
+                            cmdUpdateZoom.Parameters.AddWithValue("@MeetingPassword", password);
+                            cmdUpdateZoom.Parameters.AddWithValue("@VCId", newVCId);
+                            cmdUpdateZoom.ExecuteNonQuery();
+
+                            transaction.Commit();
+
+                            // Send Emails Outside Transaction
+                            try
+                            {
+                                var emailService = new VCBooking.Services.EmailService();
+                                await emailService.SendMeetingInviteAsync(txtTopic.Text.Trim(), fullFromDateTime, 
+                                    (int)(fullToDateTime - fullFromDateTime).TotalMinutes, joinUrl, password, participantEmails);
+                            }
+                            catch (Exception exEmail) { System.Diagnostics.Debug.WriteLine("Email Error: " + exEmail.Message); }
+
+                            Response.Redirect("ViewRequests.aspx?success=1");
+                        }
+                        catch (Exception ex)
+                        {
+                            if (transaction != null && transaction.Connection != null) transaction.Rollback();
+                            throw ex;
+                        }
+                    }
+                }
             }
             catch (Exception ex)
             {
-                // Log or ignore as it's fire-and-forget-ish
-                System.Diagnostics.Debug.WriteLine("Email Error: " + ex.Message);
+                string msg = ex.Message.Replace("'", "").Replace("\n", " ").Replace("\r", " ");
+                ScriptManager.RegisterStartupScript(this, GetType(), "errorAlert", "alert('Error creating meeting: " + msg + "');", true);
             }
-
-            ScriptManager.RegisterStartupScript(this, GetType(), "alert", 
-                "alert('VC Request Created Successfully!'); window.location='../Dashboard.aspx';", true);
         }
 
 
@@ -412,8 +379,8 @@ namespace VCBooking
                 string query = @"
             SELECT VCId, MeetingId
             FROM VCRequestHeader
-            WHERE DATEADD(MINUTE, 5, ToTime) < GETDATE()
-            AND VCStatus = 'Booked'
+            WHERE DATEADD(MINUTE, 10, ToTime) < GETDATE()
+            AND VCStatus IN ('Booked', 'Rescheduled')
             AND MeetingId IS NOT NULL";
 
                 SqlCommand cmd = new SqlCommand(query, conn);
