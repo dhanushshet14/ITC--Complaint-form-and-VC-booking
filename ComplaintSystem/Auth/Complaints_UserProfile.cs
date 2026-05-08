@@ -11,10 +11,10 @@ namespace ComplaintSystem.Auth
 {
     public class Complaints_UserProfile
     {
-        SqlConnection sCon = new SqlConnection(ConfigurationManager.ConnectionStrings["HRMContractConnectionString"].ToString());
+        SqlConnection sCon = new SqlConnection(ConfigurationManager.ConnectionStrings["ComplaintsFormConnectionString"].ToString());
         private SqlConnection GetConnection()
         {
-            return new SqlConnection(ConfigurationManager.ConnectionStrings["HRMContractConnectionString"].ConnectionString);
+            return new SqlConnection(ConfigurationManager.ConnectionStrings["ComplaintsFormConnectionString"].ConnectionString);
         }
 
         public int verifyLogin(string sUsername, string sPassword)

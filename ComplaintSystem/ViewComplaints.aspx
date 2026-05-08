@@ -310,6 +310,30 @@
             color: #856404;
         }
 
+        .action-button {
+            display: inline-block;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #4A90E2 0%, #357ABD 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .action-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+        }
+
+        .action-button:active {
+            transform: translateY(0);
+        }
+
         .table-footer {
             display: flex;
             justify-content: space-between;
@@ -365,7 +389,7 @@
     <div class="complaints-wrapper">
         <!-- Hamburger Menu -->
         <div class="hamburger-menu" id="hamburgerMenu">
-            <button class="close-menu" onclick="toggleMenu()">&#x2715;</button>
+            <button type="button" class="close-menu" onclick="toggleMenu()">&#x2715;</button>
             <a href="ComplaintPage.aspx" class="menu-item">
                 <span class="menu-icon">&#x1F4DD;</span>
                 New Complaint
@@ -381,11 +405,11 @@
         </div>
 
         <!-- Hamburger Toggle Button -->
-        <button class="hamburger-toggle" onclick="toggleMenu()">&#x2630;</button>
+        <button type="button" class="hamburger-toggle" onclick="toggleMenu()">&#x2630;</button>
 
         <!-- Profile Icon (Fixed Top Right) -->
         <div class="profile-section">
-            <button class="profile-icon" onclick="toggleProfile()">&#x2699;&#xFE0F;</button>
+            <button type="button" class="profile-icon" onclick="toggleProfile()">&#x2699;&#xFE0F;</button>
             <div class="profile-dropdown" id="profileDropdown">
                 <div class="dropdown-item">
                     <span>&#x1F464;</span>
@@ -404,10 +428,10 @@
 
             <!-- Tab Navigation -->
             <div class="tab-container">
-                <button class="tab-button active" onclick="switchTab('completed')">
+                <button type="button" class="tab-button active" onclick="switchTab('completed', this)">
                     Completed Requests (3)
                 </button>
-                <button class="tab-button" onclick="switchTab('pending')">
+                <button type="button" class="tab-button" onclick="switchTab('pending', this)">
                     Pending Requests (4)
                 </button>
             </div>
@@ -418,9 +442,10 @@
                     <table class="complaints-table">
                         <thead>
                             <tr>
-                                <th style="width: 60%;">Complaint Detail / Remarks</th>
-                                <th style="width: 30%;">Task Assigned To</th>
+                                <th style="width: 50%;">Complaint Detail / Remarks</th>
+                                <th style="width: 25%;">Task Assigned To</th>
                                 <th style="width: 10%;">Status</th>
+                                <th style="width: 15%;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -428,16 +453,19 @@
                                 <td class="complaint-detail-cell">Software license expired for Adobe Creative Suite - Affecting design team productivity</td>
                                 <td class="task-assigned-cell">Michael Roberts - IT Admin</td>
                                 <td><span class="status-badge status-completed">✓ Completed</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                             <tr>
                                 <td class="complaint-detail-cell">Office supplies shortage - Need immediate restock of stationery and printer paper</td>
                                 <td class="task-assigned-cell">David Lee - Operations</td>
                                 <td><span class="status-badge status-completed">✓ Completed</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                             <tr>
                                 <td class="complaint-detail-cell">Projector in Training Room B not displaying correctly - Screen flickers intermittently</td>
                                 <td class="task-assigned-cell">James Wilson - AV Support</td>
                                 <td><span class="status-badge status-completed">✓ Completed</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                         </tbody>
                     </table>
@@ -454,9 +482,10 @@
                     <table class="complaints-table">
                         <thead>
                             <tr>
-                                <th style="width: 60%;">Complaint Detail / Remarks</th>
-                                <th style="width: 30%;">Task Assigned To</th>
+                                <th style="width: 50%;">Complaint Detail / Remarks</th>
+                                <th style="width: 25%;">Task Assigned To</th>
                                 <th style="width: 10%;">Status</th>
+                                <th style="width: 15%;">Action</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -464,21 +493,25 @@
                                 <td class="complaint-detail-cell">Network connectivity issues in Building A - Unable to access internal servers and shared drives</td>
                                 <td class="task-assigned-cell">John Mitchell - IT Support</td>
                                 <td><span class="status-badge status-pending">⏳ Pending</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                             <tr>
                                 <td class="complaint-detail-cell">Air conditioning malfunction in Conference Room 3 - Temperature control not responding</td>
                                 <td class="task-assigned-cell">Sarah Chen - Facilities</td>
                                 <td><span class="status-badge status-pending">⏳ Pending</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                             <tr>
                                 <td class="complaint-detail-cell">Printer in Marketing department printing blank pages - Urgent replacement needed</td>
                                 <td class="task-assigned-cell">Emma Thompson - Tech Support</td>
                                 <td><span class="status-badge status-pending">⏳ Pending</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                             <tr>
                                 <td class="complaint-detail-cell">Parking access card not working - Employee unable to enter parking garage</td>
                                 <td class="task-assigned-cell">Lisa Anderson - Security</td>
                                 <td><span class="status-badge status-pending">⏳ Pending</span></td>
+                                <td><a href="StatusTimeline.aspx" class="action-button">View Timeline</a></td>
                             </tr>
                         </tbody>
                     </table>
@@ -492,57 +525,45 @@
     </div>
 
     <script>
+        // Defensive: ensure interactive buttons are non-submit
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.hamburger-toggle, .close-menu, .profile-icon').forEach(function (btn) {
+                if (btn && !btn.hasAttribute('type')) btn.setAttribute('type', 'button');
+            });
+
+            // Initialize tabs on page load - set completed as active
+            const completedTab = document.getElementById('completed');
+            const completedButton = document.querySelector('.tab-button');
+            if (completedTab) completedTab.classList.add('active');
+            if (completedButton) completedButton.classList.add('active');
+        });
+
         function toggleMenu() {
             const menu = document.getElementById('hamburgerMenu');
-            if (menu) {
-                menu.classList.toggle('active');
-            }
+            if (menu) menu.classList.toggle('active');
         }
 
         function toggleProfile() {
             const dropdown = document.getElementById('profileDropdown');
-            if (dropdown) {
-                dropdown.classList.toggle('active');
-            }
+            if (dropdown) dropdown.classList.toggle('active');
         }
 
-        function switchTab(tabName) {
+        function switchTab(tabName, evt) {
             // Hide all tabs
             const tabs = document.querySelectorAll('.tab-content');
-            tabs.forEach(tab => {
-                tab.classList.remove('active');
-            });
+            tabs.forEach(tab => tab.classList.remove('active'));
 
             // Remove active class from all buttons
             const buttons = document.querySelectorAll('.tab-button');
-            buttons.forEach(btn => {
-                btn.classList.remove('active');
-            });
+            buttons.forEach(btn => btn.classList.remove('active'));
 
             // Show selected tab
             const selectedTab = document.getElementById(tabName);
-            if (selectedTab) {
-                selectedTab.classList.add('active');
-            }
+            if (selectedTab) selectedTab.classList.add('active');
 
             // Add active class to clicked button
-            if (event && event.target) {
-                event.target.classList.add('active');
-            }
+            if (evt && evt.currentTarget) evt.currentTarget.classList.add('active');
         }
-
-        // Initialize tabs on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            // Set completed tab as active by default
-            const completedTab = document.getElementById('completed');
-            const completedButton = document.querySelector('.tab-button');
-            if (completedTab) {
-                completedTab.classList.add('active');
-            }
-            if (completedButton) {
-                completedButton.classList.add('active');
-            }
-        });
 
         // Close profile dropdown when clicking outside
         document.addEventListener('click', function (event) {
@@ -551,9 +572,7 @@
             const profileIcon = document.querySelector('.profile-icon');
 
             if (profileSection && !profileSection.contains(event.target) && event.target !== profileIcon) {
-                if (dropdown) {
-                    dropdown.classList.remove('active');
-                }
+                if (dropdown) dropdown.classList.remove('active');
             }
         });
 

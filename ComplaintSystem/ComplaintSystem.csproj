@@ -100,6 +100,8 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="About.aspx" />
+    <Content Include="AccessDenied.aspx" />
+    <Content Include="AllComplaints.aspx" />
     <Content Include="assets\css\icon.css" />
     <Content Include="assets\css\metisMenu.min.css" />
     <Content Include="assets\css\icon.min.css" />
@@ -124,10 +126,15 @@
     <Content Include="Content\bootstrap.rtl.css" />
     <Content Include="Content\bootstrap.rtl.min.css" />
     <Content Include="Content\Site.css" />
+    <Content Include="Database_Diagnostic.sql" />
+    <Content Include="DebugComplaints.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="favicon.ico" />
     <Content Include="Global.asax" />
+    <Content Include="HomePage_New.aspx" />
     <Content Include="Login.aspx" />
+    <Content Include="NewComplaint.aspx" />
+    <Content Include="RBAC_Setup.sql" />
     <Content Include="Scripts\bootstrap.bundle.js" />
     <Content Include="Scripts\bootstrap.bundle.min.js" />
     <Content Include="Scripts\bootstrap.esm.js" />
@@ -156,7 +163,45 @@
     <Content Include="Content\bootstrap-grid.rtl.css.map" />
     <Content Include="Content\bootstrap-grid.min.css.map" />
     <Content Include="Content\bootstrap-grid.css.map" />
-    <Content Include="HomePage.aspx" />
+    <Content Include="RBAC_Implementation.md" />
+    <Content Include="IMPLEMENTATION_SUMMARY.md" />
+    <Content Include="QUICK_FIX.md" />
+    <Content Include="FIX_SUMMARY.md" />
+    <Content Include="DASHBOARD_GUIDE.md" />
+    <Content Include="DASHBOARD_DATA_INTEGRATION.md" />
+    <Content Include="DASHBOARD_BUILD_COMPLETE.md" />
+    <Content Include="DASHBOARD_VISUAL_REFERENCE.md" />
+    <Content Include="IMPLEMENTATION_CHECKLIST.md" />
+    <Content Include="DASHBOARD_README.md" />
+    <Content Include="FILES_CREATED.md" />
+    <Content Include="FINAL_COMPLETION_REPORT.md" />
+    <Content Include="DOCUMENTATION_INDEX.md" />
+    <Content Include="ROLE_BASED_STATS_IMPLEMENTATION.md" />
+    <Content Include="IMPLEMENTATION_COMPLETE.md" />
+    <Content Include="FINAL_REPORT.md" />
+    <Content Include="QUICK_START.md" />
+    <Content Include="README_IMPLEMENTATION.md" />
+    <Content Include="REFERENCE_CARD.md" />
+    <Content Include="DOCUMENTATION_INDEX_IMPLEMENTATION.md" />
+    <Content Include="DASHBOARD_USER_FILTERING.md" />
+    <Content Include="FILTERING_QUICK_REFERENCE.md" />
+    <Content Include="ARCHITECTURE_DIAGRAM.md" />
+    <Content Include="IMPLEMENTATION_NOTES.md" />
+    <Content Include="NEW_COMPLAINT_FORM_IMPLEMENTATION.md" />
+    <Content Include="NEW_COMPLAINT_USER_GUIDE.md" />
+    <Content Include="NEW_COMPLAINT_DEVELOPER_GUIDE.md" />
+    <Content Include="NEW_COMPLAINT_QUICK_REFERENCE.md" />
+    <Content Include="NEW_COMPLAINT_IMPLEMENTATION_COMPLETE.md" />
+    <Content Include="BASIC_INFO_SECTION_UPDATE.md" />
+    <Content Include="BASIC_INFO_UPDATE_COMPLETE.md" />
+    <Content Include="PERFORMANCE_OPTIMIZATION_GUIDE.md" />
+    <Content Include="CHANGELOG.md" />
+    <Content Include="IMPLEMENTATION_REPORT.md" />
+    <Content Include="FINAL_SUMMARY.md" />
+    <Content Include="QUICK_REFERENCE.md" />
+    <Content Include="PROJECT_COMPLETION_CERTIFICATE.md" />
+    <Content Include="NAVIGATION_FIX_SUMMARY.md" />
+    <Content Include="QUICK_FIX_SUMMARY.md" />
     <None Include="Scripts\jquery-3.7.0.intellisense.js" />
     <Content Include="Scripts\jquery-3.7.0.js" />
     <Content Include="Scripts\jquery-3.7.0.min.js" />
@@ -185,6 +230,8 @@
     <Content Include="Scripts\WebForms\WebParts.js" />
     <Content Include="Scripts\WebForms\WebUIValidation.js" />
     <Content Include="Site.Master" />
+    <Content Include="SQL_TEST_COMMANDS.sql" />
+    <Content Include="StatusTimeline.aspx" />
     <Content Include="ViewComplaints.aspx" />
     <Content Include="ViewSwitcher.ascx" />
     <Content Include="Web.config" />
@@ -192,6 +239,10 @@
     <Content Include="Site.Mobile.Master" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AllComplaints.aspx.cs">
+      <DependentUpon>AllComplaints.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="App_Start\BundleConfig.cs" />
     <Compile Include="About.aspx.cs">
       <DependentUpon>About.aspx</DependentUpon>
@@ -201,7 +252,10 @@
       <DependentUpon>About.aspx</DependentUpon>
     </Compile>
     <Compile Include="App_Start\RouteConfig.cs" />
+    <Compile Include="Auth\AuthenticationService.cs" />
+    <Compile Include="Auth\AuthorizationHelper.cs" />
     <Compile Include="Auth\Complaints_UserProfile.cs" />
+    <Compile Include="Auth\RBACQuickReference.cs" />
     <Compile Include="ComplaintPage.aspx.cs">
       <DependentUpon>ComplaintPage.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -216,6 +270,11 @@
     <Compile Include="Contact.aspx.designer.cs">
       <DependentUpon>Contact.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Data\ComplaintDataService.cs" />
+    <Compile Include="DebugComplaints.aspx.cs">
+      <DependentUpon>DebugComplaints.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
     <Compile Include="Default.aspx.cs">
       <DependentUpon>Default.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -226,12 +285,22 @@
     <Compile Include="Global.asax.cs">
       <DependentUpon>Global.asax</DependentUpon>
     </Compile>
+    <Compile Include="HomePage.aspx.cs">
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="HomePage.aspx.designer.cs">
+      <DependentUpon>HomePage.aspx.cs</DependentUpon>
+    </Compile>
     <Compile Include="Login.aspx.cs">
       <DependentUpon>Login.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Login.aspx.designer.cs">
       <DependentUpon>Login.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="NewComplaint.aspx.cs">
+      <DependentUpon>NewComplaint.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Site.Master.cs">
@@ -248,6 +317,13 @@
     <Compile Include="Site.Mobile.Master.designer.cs">
       <DependentUpon>Site.Mobile.Master</DependentUpon>
     </Compile>
+    <Compile Include="StatusTimeline.aspx.cs">
+      <DependentUpon>StatusTimeline.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="StatusTimeline.aspx.designer.cs">
+      <DependentUpon>StatusTimeline.aspx</DependentUpon>
+    </Compile>
     <Compile Include="ViewComplaints.aspx.cs">
       <DependentUpon>ViewComplaints.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -259,13 +335,6 @@
     <Compile Include="ViewSwitcher.ascx.designer.cs">
       <DependentUpon>ViewSwitcher.ascx</DependentUpon>
     </Compile>
-    <Compile Include="HomePage.aspx.cs">
-      <DependentUpon>HomePage.aspx</DependentUpon>
-      <SubType>ASPXCodeBehind</SubType>
-    </Compile>
-    <Compile Include="HomePage.aspx.designer.cs">
-      <DependentUpon>HomePage.aspx</DependentUpon>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
@@ -275,6 +344,14 @@
     <None Include="packages.config" />
     <Content Include="Scripts\jquery-3.7.0.slim.min.map" />
     <Content Include="Scripts\jquery-3.7.0.min.map" />
+    <Content Include="TROUBLESHOOTING.md" />
+    <Content Include="STATS_QUICK_REFERENCE.md" />
+    <Content Include="VISUAL_SUMMARY.md" />
+    <Content Include="TESTING_GUIDE.md" />
+    <Content Include="TROUBLESHOOTING_NO_COMPLAINTS.md" />
+    <Content Include="USER_GUIDE.md" />
+    <Content Include="VISUAL_GUIDE.md" />
+    <Content Include="VISUAL_NAVIGATION_FIX.md" />
     <None Include="Web.Debug.config">
       <DependentUpon>Web.config</DependentUpon>
     </None>

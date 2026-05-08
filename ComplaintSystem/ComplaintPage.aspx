@@ -1,4 +1,4 @@
-<%@ Page Language="C#" AutoEventWireup="true" MasterPageFile="~/Site.Master" CodeFile="ComplaintPage.aspx.cs" Inherits="ComplaintPage.WebForm1" %>
+<%@ Page Language="C#" AutoEventWireup="true" MasterPageFile="~/Site.Master" CodeBehind="ComplaintPage.aspx.cs" Inherits="ComplaintPage.WebForm1" %>
 
 <asp:Content ID="Content1" ContentPlaceHolderID="MainContent" runat="server">
     <style>
@@ -427,7 +427,7 @@
     <div class="complaint-wrapper">
         <!-- Hamburger Menu -->
         <div class="hamburger-menu" id="hamburgerMenu">
-            <button class="close-menu" onclick="toggleMenu()">&#x2715;</button>
+            <button type="button" class="close-menu" onclick="toggleMenu()">&#x2715;</button>
             <a href="HomePage.aspx" class="menu-item">
                 <span class="menu-icon">&#x1F3E0;</span>
                 Home
@@ -443,11 +443,11 @@
         </div>
 
         <!-- Hamburger Toggle Button -->
-        <button class="hamburger-toggle" onclick="toggleMenu()">&#x2630;</button>
+        <button type="button" class="hamburger-toggle" onclick="toggleMenu()">&#x2630;</button>
 
         <!-- Profile Icon (Fixed Top Right) -->
         <div class="profile-section">
-            <button class="profile-icon" onclick="toggleProfile()">&#x2699;&#xFE0F;</button>
+            <button type="button" class="profile-icon" onclick="toggleProfile()">&#x2699;&#xFE0F;</button>
             <div class="profile-dropdown" id="profileDropdown">
                 <div class="dropdown-item">
                     <span>&#x1F464;</span>
@@ -521,15 +521,30 @@
                         <div class="form-group">
                             <label class="form-label">Complaint Request Center</label>
                             <div class="dual-input-group">
-                                <asp:TextBox ID="txtRequestCenterCode" runat="server" CssClass="form-control" Placeholder="Code"></asp:TextBox>
-                                <asp:TextBox ID="txtRequestCenterDesc" runat="server" CssClass="form-control" Placeholder="Description"></asp:TextBox>
+                               <%-- <asp:TextBox ID="txtRequestCenterCode" runat="server" CssClass="form-control" Placeholder="Code"></asp:TextBox>
+                                <asp:TextBox ID="txtRequestCenterDesc" runat="server" CssClass="form-control" Placeholder="Description"></asp:TextBox>--%>
+
+                                 <asp:DropDownList ID="ddlRequestCenterCode" runat="server" CssClass="form-control">
+                                     <asp:ListItem Text="Select code" Value="" />
+                                     <%-- Example static items; ideally bind from DB --%>
+                                     <asp:ListItem Text="RC001" Value="RC001" />
+                                     <asp:ListItem Text="RC002" Value="RC002" />
+                                 </asp:DropDownList>
                             </div>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Complaint Request Type</label>
                             <div class="dual-input-group">
-                                <asp:TextBox ID="txtRequestTypeCode" runat="server" CssClass="form-control" Placeholder="Code"></asp:TextBox>
-                                <asp:TextBox ID="txtRequestTypeDesc" runat="server" CssClass="form-control" Placeholder="Description"></asp:TextBox>
+                                <asp:DropDownList ID="ddlRequestTypeCode" runat="server" CssClass="form-control">
+                                    <asp:ListItem Text="Select code" Value="" />
+                                    <asp:ListItem Text="RT001" Value="RT001" />
+                                    <asp:ListItem Text="RT002" Value="RT002" />
+                                </asp:DropDownList>
+                                <asp:DropDownList ID="ddlRequestTypeDesc" runat="server" CssClass="form-control">
+                                    <asp:ListItem Text="Select description" Value="" />
+                                    <asp:ListItem Text="Complaint" Value="Complaint" />
+                                    <asp:ListItem Text="Inquiry" Value="Inquiry" />
+                                </asp:DropDownList>
                             </div>
                         </div>
                     </div>
@@ -589,20 +604,62 @@
     </div>
 
     <script>
+        // Defensive: ensure interactive buttons are non-submit
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('.hamburger-toggle, .close-menu, .profile-icon').forEach(function (btn) {
+                if (btn && !btn.hasAttribute('type')) btn.setAttribute('type', 'button');
+            });
+
+            // File upload preview
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', function (e) {
+                    const files = e.target.files;
+                    if (files.length > 0) {
+                        const fileNames = Array.from(files).map(f => f.name).join(', ');
+                        const uploadText = document.querySelector('.upload-text');
+                        const uploadSubtext = document.querySelector('.upload-subtext');
+
+                        if (uploadText) uploadText.textContent = fileNames;
+                        if (uploadSubtext) uploadSubtext.textContent = files.length + ' file(s) selected';
+                    }
+                });
+            }
+
+            // Word count for reason textarea
+            const reasonTextarea = document.getElementById('reasonTextarea');
+            if (reasonTextarea) {
+                reasonTextarea.addEventListener('input', function () {
+                    let words = this.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+                    const wc = document.getElementById('wordCount');
+                    if (wc) wc.textContent = words;
+                    if (words > 30) {
+                        const wordArray = this.value.trim().split(/\s+/);
+                        this.value = wordArray.slice(0, 30).join(' ');
+                        if (wc) wc.textContent = '30';
+                    }
+                });
+            }
+        });
+
+        // Toggle hamburger menu (global for inline onclick)
         function toggleMenu() {
             const menu = document.getElementById('hamburgerMenu');
-            menu.classList.toggle('active');
+            if (menu) menu.classList.toggle('active');
         }
 
+        // Toggle profile dropdown (global for inline onclick)
         function toggleProfile() {
             const dropdown = document.getElementById('profileDropdown');
-            dropdown.classList.toggle('active');
+            if (dropdown) dropdown.classList.toggle('active');
         }
 
         function submitComplaint() {
             // Simple validation
-            const subject = document.querySelector('input[placeholder="Enter subject"]').value.trim();
-            const description = document.querySelector('textarea[placeholder="Enter detailed description of the complaint"]').value.trim();
+            const subjectEl = document.getElementById('<%= txtSubject.ClientID %>') || document.querySelector('input[placeholder="Enter subject"]');
+            const descEl = document.getElementById('<%= txtDescription.ClientID %>') || document.querySelector('textarea[placeholder="Enter detailed description of the complaint"]');
+            const subject = subjectEl ? subjectEl.value.trim() : '';
+            const description = descEl ? descEl.value.trim() : '';
 
             if (!subject || !description) {
                 alert('Please fill in all required fields');
@@ -610,7 +667,26 @@
             }
 
             alert('Complaint submitted successfully!');
-            // Here you can add code to send the form data to the server
+        }
+
+        // Toggle reason field based on Customer Impact selection
+        function toggleReasonField(selectEl) {
+            var customerImpactSelect = selectEl || document.getElementById('<%= ddlCustomerImpact.ClientID %>');
+            if (!customerImpactSelect) return;
+
+            var value = customerImpactSelect.value;
+            var reasonFieldContainer = document.getElementById('reasonFieldContainer');
+            var reasonTextarea = document.getElementById('reasonTextarea');
+            var wc = document.getElementById('wordCount');
+            if (!reasonFieldContainer) return;
+
+            if (value === 'Yes') {
+                reasonFieldContainer.style.display = '';
+            } else {
+                reasonFieldContainer.style.display = 'none';
+                if (reasonTextarea) reasonTextarea.value = '';
+                if (wc) wc.textContent = '0';
+            }
         }
 
         // Close profile dropdown when clicking outside
@@ -632,59 +708,6 @@
 
             if (menu && toggle && !menu.contains(event.target) && !toggle.contains(event.target)) {
                 menu.classList.remove('active');
-            }
-        });
-
-        // File upload preview
-        document.addEventListener('DOMContentLoaded', function () {
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) {
-                fileInput.addEventListener('change', function (e) {
-                    const files = e.target.files;
-                    if (files.length > 0) {
-                        const fileNames = Array.from(files).map(f => f.name).join(', ');
-                        const uploadText = document.querySelector('.upload-text');
-                        const uploadSubtext = document.querySelector('.upload-subtext');
-
-                        if (uploadText) uploadText.textContent = fileNames;
-                        if (uploadSubtext) uploadSubtext.textContent = files.length + ' file(s) selected';
-                    }
-                });
-            }
-        });
-
-        // Toggle reason field based on Customer Impact selection
-        function toggleReasonField(selectEl) {
-            var customerImpactSelect = selectEl || document.getElementById('MainContent_ddlCustomerImpact');
-            if (!customerImpactSelect) return; // prevent .value on null
-
-            var value = customerImpactSelect.value;
-            var reasonFieldContainer = document.getElementById('reasonFieldContainer');
-            if (!reasonFieldContainer) return;
-
-            reasonFieldContainer.style.display = (value === 'Other') ? '' : 'none';
-        } else {
-                reasonFieldContainer.style.display = 'none';
-                reasonTextarea.value = '';
-                document.getElementById('wordCount').textContent = '0';
-            }
-        }
-
-        // Word count for reason textarea
-        document.addEventListener('DOMContentLoaded', function () {
-            const reasonTextarea = document.getElementById('reasonTextarea');
-            if (reasonTextarea) {
-                reasonTextarea.addEventListener('input', function () {
-                    const words = this.value.trim().split(/\s+/).filter(word => word.length > 0).length;
-                    document.getElementById('wordCount').textContent = words;
-
-                    if (words > 30) {
-                        // Remove extra words
-                        const wordArray = this.value.trim().split(/\s+/);
-                        this.value = wordArray.slice(0, 30).join(' ');
-                        document.getElementById('wordCount').textContent = '30';
-                    }
-                });
             }
         });
     </script>

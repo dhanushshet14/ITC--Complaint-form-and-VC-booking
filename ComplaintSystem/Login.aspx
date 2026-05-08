@@ -27,7 +27,7 @@
                                     <a href="#" class="logo logo-admin"><img src="assets/images/logo-sm.png" height="55" alt="logo" class="auth-logo"></a>
                                 </div>
                                 <div class="text-center auth-logo-text">
-                                    <h4 class="mt-0 mb-3 mt-5">Attendance Module - Contract Employees</h4>
+                                    <h4 class="mt-0 mb-3 mt-5">Complaint and VC booking - The Manipal Group</h4>
                                     <p class="text-muted mb-0">Sign in to continue.</p>
                                 </div>
                                 <div class="form-group">
