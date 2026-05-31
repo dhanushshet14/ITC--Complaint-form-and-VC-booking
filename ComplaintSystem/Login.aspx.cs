@@ -22,7 +22,7 @@ namespace ComplaintSystem
         {
             txtUsername.Text = "";
             txtPassword.Text = "";
-            divErrorMsg.Visible = false;
+            divErrorMsg.Attributes["class"] = "alert-danger";
             lblErrorMsg.Text = "";
             txtUsername.Focus();
         }
@@ -51,21 +51,21 @@ namespace ComplaintSystem
                     UserPermissions permissions = authService.GetUserPermissions(loginResult.EmpCode, loginResult.RoleId);
                     Session["UserPermissions"] = permissions;
 
-                    divErrorMsg.Visible = false;
+                    divErrorMsg.Attributes["class"] = "alert-danger";
                     lblErrorMsg.Text = "";
 
                     Response.Redirect("HomePage.aspx");
                 }
                 else
                 {
-                    divErrorMsg.Visible = true;
+                    divErrorMsg.Attributes["class"] = "alert-danger show";
                     lblErrorMsg.Text = "Invalid username / password.";
                     txtPassword.Focus();
                 }
             }
             catch (Exception ex)
             {
-                divErrorMsg.Visible = true;
+                divErrorMsg.Attributes["class"] = "alert-danger show";
                 lblErrorMsg.Text = $"Login error: {ex.Message}";
                 txtPassword.Focus();
             }
