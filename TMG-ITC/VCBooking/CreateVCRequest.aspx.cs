@@ -4,11 +4,10 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Threading.Tasks;
-using System.Web;
 using System.Web.UI;
 using System.Web.UI.WebControls;
+using TMG_ITC.Helpers;
 
 namespace VCBooking
 {
@@ -16,10 +15,8 @@ namespace VCBooking
     {
         protected async void Page_Load(object sender, EventArgs e)
         {
-            if (Session["EmployeeCode"] == null)
-            {
-                Response.Redirect("~/Login.aspx");
-            }
+            AuthHelper.RequireAuth();
+
             if (!IsPostBack)
             {
                 await CleanupExpiredMeetings();
@@ -31,7 +28,7 @@ namespace VCBooking
                     ddlCompany, "CompanyName", "CompanyId", "-- Select Your Company --");
 
                 LoadDropdown("SELECT VCTypeName,VCTypeId from dbo.VC_Type_Master WHERE Status='Active'",
-                    ddlVCType, "VCTypeName", "VCTypeId", "-- Select Vedio Conference Type --");
+                    ddlVCType, "VCTypeName", "VCTypeId", "-- Select Video Conference Type --");
 
                 LoadDropdown("SELECT LocationName,LocationId from dbo.Location_Master WHERE Status='Active'",
                     ddlLocation, "LocationName", "LocationId", "-- Select Location --");
@@ -45,7 +42,6 @@ namespace VCBooking
             if (!string.IsNullOrWhiteSpace(txtParticipant.Text))
             {
                 bool exists = false;
-
                 DataTable dt = ViewState["Participants"] as DataTable;
 
                 if (dt == null)
@@ -74,31 +70,22 @@ namespace VCBooking
                     DataRow dr = dt.NewRow();
                     dr["ParticipantEmail"] = txtParticipant.Text.Trim();
                     dt.Rows.Add(dr);
-
                     ViewState["Participants"] = dt;
-
                     gvParticipants.DataSource = dt;
                     gvParticipants.DataBind();
-
                     txtParticipant.Text = "";
                 }
             }
         }
 
-
         private void LoadDropdown(string query, DropDownList ddl, string textField, string valueField, string placeholderText)
         {
             string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
-
             using (SqlConnection conn = new SqlConnection(connStr))
             {
-
                 SqlCommand cmd = new SqlCommand(query, conn);
-
                 conn.Open();
-
                 SqlDataReader reader = cmd.ExecuteReader();
-
                 ddl.DataSource = reader;
                 ddl.DataTextField = textField;
                 ddl.DataValueField = valueField;
@@ -111,7 +98,6 @@ namespace VCBooking
         {
             LoadAvailableAccounts();
         }
-
 
         protected async void btnFormSubmit_Click(object sender, EventArgs e)
         {
@@ -129,27 +115,20 @@ namespace VCBooking
             }
 
             DataTable dt = ViewState["Participants"] as DataTable;
-
             if (dt == null || dt.Rows.Count == 0)
             {
                 Response.Write("<script>alert('Add at least one participant');</script>");
                 return;
             }
 
-            string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
+            var user = AuthHelper.GetCurrentUser();
+            string createdByName = user.FullName;
+            string createdByEmail = user.Username + "@manipalgroup.com";
 
+            string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
             List<string> participantEmails = new List<string>();
             foreach (DataRow row in dt.Rows)
                 participantEmails.Add(row["ParticipantEmail"].ToString());
-
-            string createdByName = Session["UserName"]?.ToString();
-            string createdByEmail = Session["UserEmail"]?.ToString();
-
-            if (string.IsNullOrEmpty(createdByName) || string.IsNullOrEmpty(createdByEmail))
-            {
-                Response.Redirect("Login.aspx");
-                return;
-            }
 
             string meetingId = "";
             string joinUrl = "";
@@ -165,10 +144,8 @@ namespace VCBooking
 
                 try
                 {
-                    // 🔹 Generate VCId
                     string newVCId = "";
                     string getLastIdQuery = "SELECT TOP 1 VCId FROM VCRequestHeader ORDER BY VCId DESC";
-
                     SqlCommand cmdGetId = new SqlCommand(getLastIdQuery, conn, transaction);
                     object result = cmdGetId.ExecuteScalar();
 
@@ -184,7 +161,6 @@ namespace VCBooking
                     fullFromDateTime = DateTime.Parse(txtDate.Text + " " + txtFrom.Text);
                     fullToDateTime = DateTime.Parse(txtDate.Text + " " + txtTo.Text);
 
-                    // 🔹 Overlap check
                     string overlapCheckQuery = @"
                 SELECT COUNT(*)
                 FROM VCRequestHeader
@@ -197,7 +173,6 @@ namespace VCBooking
                     cmdCheck.Parameters.Add("@NewToTime", SqlDbType.DateTime).Value = fullToDateTime;
 
                     int overlapCount = (int)cmdCheck.ExecuteScalar();
-
                     if (overlapCount > 0)
                     {
                         transaction.Rollback();
@@ -205,7 +180,6 @@ namespace VCBooking
                         return;
                     }
 
-                    // 🔹 Insert Header
                     string insertHeaderQuery = @"
                 INSERT INTO VCRequestHeader
                 (VCId, CompanyId, VCTypeId, VCAccountId, Topic, VCDate, FromTime, ToTime, LocationId, VCStatus, CreatedBy, CreatedDate)
@@ -213,7 +187,6 @@ namespace VCBooking
                 (@VCId, @CompanyId, @VCTypeId, @VCAccountId, @Topic, @VCDate, @FromTime, @ToTime, @LocationId, 'New', @CreatedBy, GETDATE())";
 
                     SqlCommand cmdHeader = new SqlCommand(insertHeaderQuery, conn, transaction);
-
                     cmdHeader.Parameters.AddWithValue("@VCId", newVCId);
                     cmdHeader.Parameters.AddWithValue("@CompanyId", ddlCompany.SelectedValue);
                     cmdHeader.Parameters.AddWithValue("@VCTypeId", ddlVCType.SelectedValue);
@@ -224,10 +197,8 @@ namespace VCBooking
                     cmdHeader.Parameters.Add("@ToTime", SqlDbType.DateTime).Value = fullToDateTime;
                     cmdHeader.Parameters.AddWithValue("@LocationId", ddlLocation.SelectedValue);
                     cmdHeader.Parameters.AddWithValue("@CreatedBy", createdByName);
-
                     cmdHeader.ExecuteNonQuery();
 
-                    // 🔹 Insert Participants
                     foreach (string email in participantEmails)
                     {
                         SqlCommand cmdParticipant = new SqlCommand(@"
@@ -236,16 +207,13 @@ namespace VCBooking
                     VALUES
                     (@VCId, @ParticipantEmail, @CreatedBy, GETDATE())",
                             conn, transaction);
-
                         cmdParticipant.Parameters.AddWithValue("@VCId", newVCId);
                         cmdParticipant.Parameters.AddWithValue("@ParticipantEmail", email);
                         cmdParticipant.Parameters.AddWithValue("@CreatedBy", createdByName);
                         cmdParticipant.ExecuteNonQuery();
                     }
 
-                    // 🔹 Call Zoom
                     var zoomService = new VCBooking.Services.ZoomService();
-
                     var zoomResponse = await zoomService.CreateMeetingAsync(
                         txtTopic.Text.Trim(),
                         fullFromDateTime,
@@ -259,7 +227,6 @@ namespace VCBooking
                     startUrl = zoomResponse["start_url"].ToString();
                     password = zoomResponse["password"].ToString();
 
-                    // 🔹 Update Header with Zoom details
                     SqlCommand cmdUpdateZoom = new SqlCommand(@"
                 UPDATE VCRequestHeader
                 SET MeetingId=@MeetingId,
@@ -277,7 +244,6 @@ namespace VCBooking
                     cmdUpdateZoom.Parameters.AddWithValue("@HostUrl", startUrl);
                     cmdUpdateZoom.Parameters.AddWithValue("@MeetingPassword", password);
                     cmdUpdateZoom.Parameters.AddWithValue("@VCId", newVCId);
-
                     cmdUpdateZoom.ExecuteNonQuery();
 
                     transaction.Commit();
@@ -292,7 +258,6 @@ namespace VCBooking
                 }
             }
 
-            // 🔹 SEND EMAILS OUTSIDE TRANSACTION
             var emailService = new VCBooking.Services.EmailService();
             int duration = (int)(fullToDateTime - fullFromDateTime).TotalMinutes;
 
@@ -321,10 +286,6 @@ namespace VCBooking
             Response.Write("<script>alert('VC Request Created Successfully!');</script>");
         }
 
-
-
-
-
         private void LoadAvailableAccounts()
         {
             if (ddlVCType.SelectedValue == "" ||
@@ -338,60 +299,48 @@ namespace VCBooking
             }
 
             string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
-
             using (SqlConnection conn = new SqlConnection(connStr))
             {
                 string query = @"
-        SELECT a.VCAccountId, a.VCAccountName
-        FROM VC_Account_Master a
-        WHERE a.VCTypeId = @VCTypeId
-        AND a.Status = 'Active'
-        AND NOT EXISTS
-        (
-            SELECT 1
-            FROM VCRequestHeader h
-            WHERE h.VCAccountId = a.VCAccountId
-            AND (@NewFromTime < h.ToTime AND @NewToTime > h.FromTime)
-        )";
+            SELECT a.VCAccountId, a.VCAccountName
+            FROM VC_Account_Master a
+            WHERE a.VCTypeId = @VCTypeId
+            AND a.Status = 'Active'
+            AND NOT EXISTS
+            (
+                SELECT 1
+                FROM VCRequestHeader h
+                WHERE h.VCAccountId = a.VCAccountId
+                AND (@NewFromTime < h.ToTime AND @NewToTime > h.FromTime)
+            )";
 
                 SqlCommand cmd = new SqlCommand(query, conn);
-
                 cmd.Parameters.AddWithValue("@VCTypeId", ddlVCType.SelectedValue);
-
                 DateTime newFrom = DateTime.Parse(txtDate.Text + " " + txtFrom.Text);
                 DateTime newTo = DateTime.Parse(txtDate.Text + " " + txtTo.Text);
-
                 cmd.Parameters.Add("@NewFromTime", SqlDbType.DateTime).Value = newFrom;
                 cmd.Parameters.Add("@NewToTime", SqlDbType.DateTime).Value = newTo;
-
                 conn.Open();
-
                 SqlDataReader reader = cmd.ExecuteReader();
-
                 ddlVCAccount.DataSource = reader;
                 ddlVCAccount.DataTextField = "VCAccountName";
                 ddlVCAccount.DataValueField = "VCAccountId";
                 ddlVCAccount.DataBind();
-
                 ddlVCAccount.Items.Insert(0, new ListItem("-- Select Account --", ""));
             }
         }
-
 
         protected void DateOrTimeChanged(object sender, EventArgs e)
         {
             LoadAvailableAccounts();
         }
 
-
         private async Task CleanupExpiredMeetings()
         {
             string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
-
             using (SqlConnection conn = new SqlConnection(connStr))
             {
                 await conn.OpenAsync();
-
                 string query = @"
             SELECT VCId, MeetingId
             FROM VCRequestHeader
@@ -401,7 +350,6 @@ namespace VCBooking
 
                 SqlCommand cmd = new SqlCommand(query, conn);
                 SqlDataReader reader = await cmd.ExecuteReaderAsync();
-
                 var expiredMeetings = new List<(string VCId, string MeetingId)>();
 
                 while (await reader.ReadAsync())
@@ -411,37 +359,26 @@ namespace VCBooking
                         reader["MeetingId"].ToString()
                     ));
                 }
-
                 reader.Close();
 
                 var zoomService = new VCBooking.Services.ZoomService();
-
                 foreach (var meeting in expiredMeetings)
                 {
                     try
                     {
-
                         await zoomService.DeleteMeetingAsync(meeting.MeetingId);
-
                         string updateQuery = @"
                     UPDATE VCRequestHeader
                     SET VCStatus = 'Completed',
                         APIStatus = 'Deleted'
                     WHERE VCId = @VCId";
-
                         SqlCommand updateCmd = new SqlCommand(updateQuery, conn);
                         updateCmd.Parameters.AddWithValue("@VCId", meeting.VCId);
-
                         await updateCmd.ExecuteNonQueryAsync();
                     }
-                    catch
-                    {
-                        Response.Write("Error Occured in createRequest page");
-                    }
+                    catch { }
                 }
             }
         }
-
-
     }
 }

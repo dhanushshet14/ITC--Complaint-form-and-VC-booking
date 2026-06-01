@@ -3,6 +3,7 @@ using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
 using System.Web.UI.WebControls;
+using TMG_ITC.Helpers;
 
 namespace VCBooking
 {
@@ -10,10 +11,7 @@ namespace VCBooking
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["EmployeeCode"] == null)
-            {
-                Response.Redirect("~/Login.aspx");
-            }
+            AuthHelper.RequireAuth();
             if (!IsPostBack)
             {
                 LoadMeetings();
@@ -45,20 +43,16 @@ namespace VCBooking
                 ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString))
             {
                 string query = @"UPDATE VCRequestHeader
-                                 SET VCStatus = 'Cancelled',
-                                     CancelledBy = @CancelledBy,
-                                     CancelledDate = GETDATE(),
-                                     CancelReason = @CancelReason
-                                 WHERE VCId = @VCId";
+                                  SET VCStatus = 'Cancelled',
+                                      CancelledBy = @CancelledBy,
+                                      CancelledDate = GETDATE(),
+                                      CancelReason = @CancelReason
+                                  WHERE VCId = @VCId";
 
                 SqlCommand cmd = new SqlCommand(query, con);
                 cmd.Parameters.AddWithValue("@VCId", vcId);
-
-                string cancelledBy = Session["Username"] != null
-                                     ? Session["Username"].ToString()
-                                     : "Admin";
-
-                cmd.Parameters.AddWithValue("@CancelledBy", cancelledBy);
+                var user = AuthHelper.GetCurrentUser();
+                cmd.Parameters.AddWithValue("@CancelledBy", user.FullName);
                 cmd.Parameters.AddWithValue("@CancelReason", reason);
 
                 con.Open();
@@ -66,7 +60,6 @@ namespace VCBooking
                 con.Close();
             }
         }
-
 
         protected void gvMeetings_RowCommand(object sender, GridViewCommandEventArgs e)
         {
@@ -77,20 +70,17 @@ namespace VCBooking
             }
         }
 
-
         protected void btnConfirmDelete_Click(object sender, EventArgs e)
         {
             if (string.IsNullOrWhiteSpace(txtReason.Text))
             {
-                return; // Later we can show validation message
+                return;
             }
 
             SoftDeleteMeeting(hfVCId.Value, txtReason.Text);
-
             pnlDelete.Visible = false;
             txtReason.Text = "";
-
-            LoadMeetings(); // Refresh grid
+            LoadMeetings();
         }
 
         protected void btnCancelPopup_Click(object sender, EventArgs e)

@@ -1,69 +1,227 @@
 ﻿<%@ Master Language="C#" AutoEventWireup="true" CodeBehind="Site.master.cs" Inherits="TMG_ITC.SiteMaster" %>
 
 <!DOCTYPE html>
-
 <html lang="en">
 <head runat="server">
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%: Page.Title %> - My ASP.NET Application</title>
-
-    <asp:PlaceHolder runat="server">
-        <%: Scripts.Render("~/bundles/modernizr") %>
-    </asp:PlaceHolder>
-
-    <webopt:bundlereference runat="server" path="~/Content/css" />
-    <link href="~/favicon.ico" rel="shortcut icon" type="image/x-icon" />
-
+    <title><%: Page.Title %> - IT Helpdesk</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+    <link href="~/Content/Site.css" rel="stylesheet" />
+    <style>
+        :root { --sidebar-width: 250px; }
+        body { background: #f4f6f9; overflow-x: hidden; }
+        .wrapper { display: flex; }
+        .sidebar {
+            width: var(--sidebar-width); min-height: 100vh;
+            background: #1a237e; color: #fff;
+            transition: margin-left 0.3s; position: fixed; left: 0; top: 0; z-index: 1000;
+        }
+        .sidebar-brand {
+            padding: 20px 20px; font-size: 18px; font-weight: 700;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-brand small { font-size: 12px; font-weight: 400; opacity: 0.7; display: block; }
+        .sidebar .nav-link {
+            color: rgba(255,255,255,0.7); padding: 12px 20px;
+            font-size: 14px; border-left: 3px solid transparent;
+            display: flex; align-items: center; gap: 10px;
+        }
+        .sidebar .nav-link:hover, .sidebar .nav-link.active {
+            color: #fff; background: rgba(255,255,255,0.08); border-left-color: #fff;
+        }
+        .sidebar .nav-link i { font-size: 18px; width: 22px; text-align: center; }
+        .content {
+            margin-left: var(--sidebar-width); flex: 1; padding: 20px; min-height: 100vh;
+        }
+        .topbar {
+            background: #fff; padding: 12px 24px; border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .user-badge { display: flex; align-items: center; gap: 10px; }
+        .user-avatar {
+            width: 36px; height: 36px; border-radius: 50%;
+            background: #1a237e; color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 600; font-size: 14px;
+        }
+        .role-badge {
+            font-size: 11px; padding: 2px 8px; border-radius: 10px;
+            font-weight: 600;
+        }
+        .role-badge.admin { background: #e8d5f5; color: #7b1fa2; }
+        .role-badge.engineer { background: #dbeafe; color: #1d4ed8; }
+        .role-badge.soc { background: #fed7aa; color: #c2410c; }
+        .role-badge.employee { background: #ccfbf1; color: #0f766e; }
+        .role-badge.guest { background: #f3e8ff; color: #7c3aed; }
+        .page-title { font-size: 22px; font-weight: 600; color: #1a1a2e; margin: 0; }
+        .notif-bell { position: relative; }
+        .notif-badge {
+            position: absolute; top: -4px; right: -6px;
+            font-size: 10px; padding: 2px 5px; border-radius: 10px;
+            background: #dc3545; color: #fff; font-weight: 600;
+            min-width: 18px; text-align: center;
+        }
+        .notif-dropdown {
+            position: absolute; top: 100%; right: 0; z-index: 1050;
+            width: 360px; max-height: 420px; overflow-y: auto;
+            background: #fff; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+            display: none; margin-top: 8px;
+        }
+        .notif-dropdown.show { display: block; }
+        .notif-header {
+            padding: 12px 16px; font-weight: 600; font-size: 14px;
+            border-bottom: 1px solid #eee; color: #333;
+        }
+        .notif-item {
+            display: block; padding: 12px 16px; border-bottom: 1px solid #f5f5f5;
+            text-decoration: none; color: #333; cursor: pointer;
+        }
+        .notif-item:hover { background: #f8f9fa; }
+        .notif-item .notif-subject { font-size: 13px; font-weight: 500; }
+        .notif-item .notif-body { font-size: 12px; color: #6c757d; margin-top: 2px; }
+        .notif-item .notif-time { font-size: 11px; color: #adb5bd; margin-top: 4px; }
+        .notif-empty { padding: 24px; text-align: center; color: #6c757d; font-size: 13px; }
+        .notif-mark-all {
+            display: block; padding: 10px 16px; text-align: center;
+            font-size: 13px; font-weight: 500; color: #0d6efd;
+            text-decoration: none; border-top: 1px solid #eee;
+        }
+        .notif-mark-all:hover { background: #f0f4ff; }
+        @media (max-width: 768px) {
+            .sidebar { margin-left: calc(var(--sidebar-width) * -1); }
+            .sidebar.show { margin-left: 0; }
+            .content { margin-left: 0; }
+        }
+    </style>
 </head>
 <body>
     <form runat="server">
-        <asp:ScriptManager runat="server">
-            <Scripts>
-                <%--To learn more about bundling scripts in ScriptManager see https://go.microsoft.com/fwlink/?LinkID=301884 --%>
-                <%--Framework Scripts--%>
-                <asp:ScriptReference Name="MsAjaxBundle" />
-                <asp:ScriptReference Name="jquery" />
-                <asp:ScriptReference Name="WebForms.js" Assembly="System.Web" Path="~/Scripts/WebForms/WebForms.js" />
-                <asp:ScriptReference Name="WebUIValidation.js" Assembly="System.Web" Path="~/Scripts/WebForms/WebUIValidation.js" />
-                <asp:ScriptReference Name="MenuStandards.js" Assembly="System.Web" Path="~/Scripts/WebForms/MenuStandards.js" />
-                <asp:ScriptReference Name="GridView.js" Assembly="System.Web" Path="~/Scripts/WebForms/GridView.js" />
-                <asp:ScriptReference Name="DetailsView.js" Assembly="System.Web" Path="~/Scripts/WebForms/DetailsView.js" />
-                <asp:ScriptReference Name="TreeView.js" Assembly="System.Web" Path="~/Scripts/WebForms/TreeView.js" />
-                <asp:ScriptReference Name="WebParts.js" Assembly="System.Web" Path="~/Scripts/WebForms/WebParts.js" />
-                <asp:ScriptReference Name="Focus.js" Assembly="System.Web" Path="~/Scripts/WebForms/Focus.js" />
-                <asp:ScriptReference Name="WebFormsBundle" />
-                <%--Site Scripts--%>
-            </Scripts>
-        </asp:ScriptManager>
-
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark">
-            <div class="container">
-                <a class="navbar-brand" runat="server" href="~/">Application name</a>
-                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" title="Toggle navigation" aria-controls="navbarSupportedContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse d-sm-inline-flex justify-content-between">
-                    <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item"><a class="nav-link" runat="server" href="~/">Home</a></li>
-                        <li class="nav-item"><a class="nav-link" runat="server" href="~/About">About</a></li>
-                        <li class="nav-item"><a class="nav-link" runat="server" href="~/Contact">Contact</a></li>
-                    </ul>
+        <asp:ScriptManager ID="ScriptManager1" runat="server" />
+        <div class="wrapper">
+            <nav class="sidebar" id="sidebar">
+                <div class="sidebar-brand">
+                    IT Helpdesk
+                    <small>Complaint Management System</small>
                 </div>
-            </div>
-        </nav>
-        <div class="container body-content">
-            <asp:ContentPlaceHolder ID="MainContent" runat="server">
-            </asp:ContentPlaceHolder>
-            <hr />
-            <footer>
-                <p>&copy; <%: DateTime.Now.Year %> - My ASP.NET Application</p>
-            </footer>
+                <ul class="nav flex-column mt-2">
+                    <li class="nav-item">
+                        <a class="nav-link" runat="server" href="~/Dashboard.aspx" id="navDashboard">
+                            <i class="bi bi-speedometer2"></i> Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" runat="server" href="~/ComplaintCreation.aspx" id="navNewComplaint">
+                            <i class="bi bi-plus-circle"></i> New Complaint
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" runat="server" href="~/TechnicalComplaints.aspx" id="navTechnical">
+                            <i class="bi bi-laptop"></i> Technical
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" runat="server" href="~/TelephoneComplaints.aspx" id="navTelephone">
+                            <i class="bi bi-telephone"></i> Telephone
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" runat="server" href="~/VCBooking/EmployeeDashboard.aspx" id="navVCBooking">
+                            <i class="bi bi-camera-video"></i> VC Booking
+                        </a>
+                    </li>
+                    <li class="nav-item" id="navSOCItem" runat="server">
+                        <a class="nav-link" runat="server" href="~/SOCPanel.aspx" id="navSOC">
+                            <i class="bi bi-shield-check"></i> SOC
+                        </a>
+                    </li>
+                    <li class="nav-item" id="navAdminItem" runat="server">
+                        <a class="nav-link" runat="server" href="~/AdminPanel.aspx" id="navAdmin">
+                            <i class="bi bi-gear"></i> Admin Panel
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+
+            <main class="content">
+                <div class="topbar">
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn btn-sm btn-outline-secondary d-md-none" type="button"
+                            onclick="document.getElementById('sidebar').classList.toggle('show')">
+                            <i class="bi bi-list"></i>
+                        </button>
+                        <h1 class="page-title"><asp:Label ID="lblPageTitle" runat="server" Text="Dashboard" /></h1>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <asp:UpdatePanel ID="upNotifications" runat="server" UpdateMode="Conditional">
+                            <ContentTemplate>
+                                <asp:Timer ID="timerNotifications" runat="server" Interval="30000" OnTick="timerNotifications_Tick" />
+                                <div class="notif-bell">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary position-relative"
+                                        onclick="toggleNotifDropdown()" title="Notifications">
+                                        <i class="bi bi-bell"></i>
+                                        <asp:Literal ID="litNotifBadge" runat="server" />
+                                    </button>
+                                    <div class="notif-dropdown" id="notifDropdown">
+                                        <div class="notif-header">Notifications</div>
+                                        <asp:Repeater ID="rptNotifications" runat="server" OnItemCommand="rptNotifications_ItemCommand">
+                                            <ItemTemplate>
+                                                <asp:LinkButton runat="server" CssClass="notif-item"
+                                                    CommandName="Open"
+                                                    CommandArgument='<%# Eval("NotificationId") + "|" + Eval("ComplaintId") %>'>
+                                                    <div class="notif-subject"><%# Eval("Subject") %></div>
+                                                    <div class="notif-body"><%# Eval("BodyShort") %></div>
+                                                    <div class="notif-time"><%# GetTimeAgo(Eval("CreatedDate")) %></div>
+                                                </asp:LinkButton>
+                                            </ItemTemplate>
+                                        </asp:Repeater>
+                                        <asp:Literal ID="litNoNotif" runat="server" />
+                                        <asp:LinkButton ID="btnMarkAllRead" runat="server" CssClass="notif-mark-all"
+                                            OnClick="btnMarkAllRead_Click" Text="Mark all as read" />
+                                    </div>
+                                </div>
+                            </ContentTemplate>
+                            <Triggers>
+                                <asp:AsyncPostBackTrigger ControlID="timerNotifications" EventName="Tick" />
+                            </Triggers>
+                        </asp:UpdatePanel>
+                        <div class="user-badge">
+                            <asp:Literal ID="litUserInfo" runat="server" />
+                            <div class="user-avatar"><asp:Literal ID="litAvatar" runat="server" /></div>
+                            <div>
+                                <div style="font-size: 14px; font-weight: 500;"><asp:Literal ID="litUserName" runat="server" /></div>
+                                <asp:Literal ID="litRoleBadge" runat="server" />
+                            </div>
+                            <asp:LinkButton ID="btnLogout" runat="server" CssClass="btn btn-sm btn-outline-danger ms-2"
+                                OnClick="btnLogout_Click" title="Logout">
+                                <i class="bi bi-box-arrow-right"></i>
+                            </asp:LinkButton>
+                        </div>
+                    </div>
+                </div>
+                <asp:ContentPlaceHolder ID="MainContent" runat="server" />
+            </main>
         </div>
     </form>
-    <asp:PlaceHolder runat="server">
-        <%: Scripts.Render("~/Scripts/bootstrap.js") %>
-    </asp:PlaceHolder>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function toggleNotifDropdown() {
+            var dd = document.getElementById('notifDropdown');
+            dd.classList.toggle('show');
+        }
+        document.addEventListener('click', function (e) {
+            var bell = document.querySelector('.notif-bell');
+            if (bell && !bell.contains(e.target)) {
+                var dd = document.getElementById('notifDropdown');
+                if (dd) dd.classList.remove('show');
+            }
+        });
+        Sys.WebForms.PageRequestManager.getInstance().add_endRequest(function () {
+            var dd = document.getElementById('notifDropdown');
+            if (dd) dd.classList.remove('show');
+        });
+    </script>
 </body>
 </html>
