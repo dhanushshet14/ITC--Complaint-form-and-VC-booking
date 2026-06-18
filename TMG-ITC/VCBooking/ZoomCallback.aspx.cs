@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
+using TMG_ITC.Helpers;
 
 namespace VCBooking
 {
@@ -11,10 +7,8 @@ namespace VCBooking
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["EmployeeCode"] == null)
-            {
-                Response.Redirect("~/Login.aspx");
-            }
+            AuthHelper.RequireAuth();
+
             string code = Request.QueryString["code"];
 
             if (!string.IsNullOrEmpty(code))

@@ -1,7 +1,6 @@
 ﻿using System;
-using System.Configuration;
-using System.Data.SqlClient;
 using System.Web.UI;
+using TMG_ITC.Helpers;
 
 namespace TMG_ITC
 {
@@ -9,35 +8,48 @@ namespace TMG_ITC
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-
+            if (AuthHelper.IsAuthenticated())
+                Response.Redirect("~/Dashboard.aspx");
         }
 
         protected void btnLogin_Click(object sender, EventArgs e)
         {
-            string empCode = txtEmployeecode.Text.Trim();
+            lblMessage.Visible = false;
 
-            string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
+            string username = txtUsername.Text.Trim();
+            string password = txtPassword.Text;
 
-            using (SqlConnection con = new SqlConnection(connStr))
+            if (string.IsNullOrEmpty(username))
             {
-                string query = "SELECT COUNT(*) FROM TBL_EmployeeDetails WHERE EMP_Empcode = @EmpCode AND EMP_DomainUsername = @EmpCode";
-
-                SqlCommand cmd = new SqlCommand(query, con);
-                cmd.Parameters.AddWithValue("@EmpCode", empCode);
-
-                con.Open();
-                int count = (int)cmd.ExecuteScalar();
-
-                if (count > 0)
-                {
-                    Session["EmployeeCode"]= empCode;
-                    Response.Redirect("~/Dashboard.aspx");
-                }
-                else
-                {
-                    Response.Write("<script>alert('Invalid Credentials');</script>");
-                }
+                ShowError("Please enter username or employee code");
+                return;
             }
+
+            var result = AuthHelper.ValidateCredentials(username, password);
+
+            if (!result.Success)
+            {
+                ShowError(result.Message);
+                return;
+            }
+
+            AuthHelper.SetSession(new UserSessionData
+            {
+                EmpCode = result.EmpCode,
+                FullName = result.FullName,
+                Username = username,
+                Role = result.Role,
+                LoginType = result.LoginType,
+                UnitIds = result.UnitIds
+            });
+
+            Response.Redirect(AuthHelper.GetRedirectUrl(result.Role));
+        }
+
+        private void ShowError(string message)
+        {
+            lblMessage.Text = message;
+            lblMessage.Visible = true;
         }
     }
 }

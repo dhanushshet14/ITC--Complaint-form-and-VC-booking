@@ -1,0 +1,23 @@
+services:
+  sqlserver:
+    build:
+      context: ./Database
+      dockerfile: Dockerfile
+    container_name: itc-sqlserver
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "ITC@dmin2026"
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "ITC@dmin2026" -Q "SELECT 1" -b -o /dev/null
+      interval: 10s
+      timeout: 5s
+      retries: 15
+      start_period: 60s
+
+volumes:
+  sqlserver-data:

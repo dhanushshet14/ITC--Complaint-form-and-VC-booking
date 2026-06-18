@@ -78,6 +78,11 @@
     <Reference Include="Newtonsoft.Json">
       <HintPath>..\packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
+    <Reference Include="BCrypt.Net-Next">
+      <HintPath>..\packages\BCrypt.Net-Next.4.0.3\lib\net48\BCrypt.Net-Next.dll</HintPath>
+    </Reference>
+    <Reference Include="System.DirectoryServices" />
+    <Reference Include="System.DirectoryServices.AccountManagement" />
     <Reference Include="WebGrease">
       <Private>True</Private>
       <HintPath>..\packages\WebGrease.1.6.0\lib\WebGrease.dll</HintPath>
@@ -101,7 +106,10 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="About.aspx" />
+    <Content Include="AdminPanel.aspx" />
     <Content Include="Contact.aspx" />
+    <Content Include="TechnicalComplaints.aspx" />
+    <Content Include="TelephoneComplaints.aspx" />
     <Content Include="Content\bootstrap-grid.css" />
     <Content Include="Content\bootstrap-grid.min.css" />
     <Content Include="Content\bootstrap-grid.rtl.css" />
@@ -119,9 +127,13 @@
     <Content Include="Content\bootstrap.rtl.css" />
     <Content Include="Content\bootstrap.rtl.min.css" />
     <Content Include="Content\Site.css" />
+    <Content Include="ComplaintCreation.aspx" />
+    <Content Include="ComplaintDetail.aspx" />
     <Content Include="Dashboard.aspx" />
+    <Content Include="SOCPanel.aspx" />
     <Content Include="Default.aspx" />
     <Content Include="favicon.ico" />
+    <Content Include="GuestRegister.aspx" />
     <Content Include="Global.asax" />
     <Content Include="Scripts\bootstrap.bundle.js" />
     <Content Include="Scripts\bootstrap.bundle.min.js" />
@@ -199,6 +211,13 @@
     <Compile Include="About.aspx.designer.cs">
       <DependentUpon>About.aspx</DependentUpon>
     </Compile>
+    <Compile Include="AdminPanel.aspx.cs">
+      <DependentUpon>AdminPanel.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="AdminPanel.aspx.designer.cs">
+      <DependentUpon>AdminPanel.aspx</DependentUpon>
+    </Compile>
     <Compile Include="App_Start\RouteConfig.cs" />
     <Compile Include="Contact.aspx.cs">
       <DependentUpon>Contact.aspx</DependentUpon>
@@ -206,6 +225,41 @@
     </Compile>
     <Compile Include="Contact.aspx.designer.cs">
       <DependentUpon>Contact.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="ComplaintCreation.aspx.cs">
+      <DependentUpon>ComplaintCreation.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ComplaintCreation.aspx.designer.cs">
+      <DependentUpon>ComplaintCreation.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="TechnicalComplaints.aspx.cs">
+      <DependentUpon>TechnicalComplaints.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="TechnicalComplaints.aspx.designer.cs">
+      <DependentUpon>TechnicalComplaints.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="TelephoneComplaints.aspx.cs">
+      <DependentUpon>TelephoneComplaints.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="TelephoneComplaints.aspx.designer.cs">
+      <DependentUpon>TelephoneComplaints.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="ComplaintDetail.aspx.cs">
+      <DependentUpon>ComplaintDetail.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="ComplaintDetail.aspx.designer.cs">
+      <DependentUpon>ComplaintDetail.aspx</DependentUpon>
+    </Compile>
+    <Compile Include="SOCPanel.aspx.cs">
+      <DependentUpon>SOCPanel.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="SOCPanel.aspx.designer.cs">
+      <DependentUpon>SOCPanel.aspx</DependentUpon>
     </Compile>
     <Compile Include="Dashboard.aspx.cs">
       <DependentUpon>Dashboard.aspx</DependentUpon>
@@ -260,6 +314,13 @@
     <Compile Include="VCBooking\EmployeeDashboard.aspx.designer.cs">
       <DependentUpon>EmployeeDashboard.aspx</DependentUpon>
     </Compile>
+    <Compile Include="GuestRegister.aspx.cs">
+      <DependentUpon>GuestRegister.aspx</DependentUpon>
+      <SubType>ASPXCodeBehind</SubType>
+    </Compile>
+    <Compile Include="GuestRegister.aspx.designer.cs">
+      <DependentUpon>GuestRegister.aspx</DependentUpon>
+    </Compile>
     <Compile Include="Login.aspx.cs">
       <DependentUpon>Login.aspx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -283,6 +344,9 @@
     <Compile Include="VCBooking\ZoomCallback.aspx.designer.cs">
       <DependentUpon>ZoomCallback.aspx</DependentUpon>
     </Compile>
+    <Compile Include="Helpers\AuthHelper.cs" />
+    <Compile Include="Helpers\JwtHelper.cs" />
+    <Compile Include="Helpers\NotificationHelper.cs" />
     <Compile Include="ViewSwitcher.ascx.cs">
       <DependentUpon>ViewSwitcher.ascx</DependentUpon>
       <SubType>ASPXCodeBehind</SubType>
@@ -293,6 +357,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="App_Data\" />
+    <Folder Include="Helpers\" />
+    <Folder Include="Uploads\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

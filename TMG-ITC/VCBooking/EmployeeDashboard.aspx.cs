@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
+using TMG_ITC.Helpers;
 
 namespace VCBooking
 {
@@ -11,11 +7,9 @@ namespace VCBooking
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["EmployeeCode"] == null)
-            {
-                Response.Redirect("~/Login.aspx");
-            }
-            lblWelcome.Text = "Welcome," + Session["username"];
+            AuthHelper.RequireAuth();
+            var user = AuthHelper.GetCurrentUser();
+            lblWelcome.Text = "Welcome, " + user.FullName;
         }
 
         protected void btnClick_createVCRequest(object sender, EventArgs e)
@@ -30,8 +24,7 @@ namespace VCBooking
 
         protected void btnClick_LogOut(object sender, EventArgs e)
         {
-            Session.Clear();
-            Session.Abandon();
+            AuthHelper.Logout();
             Response.Redirect("~/Login.aspx");
         }
     }

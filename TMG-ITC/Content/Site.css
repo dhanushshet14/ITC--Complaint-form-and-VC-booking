@@ -1,4 +1,18 @@
-﻿/* Wrapping element */
+﻿/* Priority and Status badge colours */
+.badge.priority-Critical { background: #7c1d0e; color: #fff; }
+.badge.priority-High { background: #dc3545; color: #fff; }
+.badge.priority-Medium { background: #ffc107; color: #000; }
+.badge.priority-Low { background: #198754; color: #fff; }
+
+.badge.status-New { background: #0d6efd; color: #fff; }
+.badge.status-Assigned { background: #6f42c1; color: #fff; }
+.badge.status-InProgress { background: #ffc107; color: #000; }
+.badge.status-Resolved { background: #198754; color: #fff; }
+.badge.status-Closed { background: #6c757d; color: #fff; }
+.badge.status-Reopened { background: #dc3545; color: #fff; }
+.badge.status-Hold { background: #212529; color: #fff; }
+
+/* Wrapping element */
 /* Set some basic padding to keep content from hitting the edges */
 .body-content {
     margin-top: 15px;

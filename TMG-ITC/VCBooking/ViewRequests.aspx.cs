@@ -1,12 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Configuration;
 using System.Data;
 using System.Data.SqlClient;
-using System.Linq;
-using System.Web;
-using System.Web.UI;
-using System.Web.UI.WebControls;
+using TMG_ITC.Helpers;
 
 namespace VCBooking
 {
@@ -14,10 +10,7 @@ namespace VCBooking
     {
         protected void Page_Load(object sender, EventArgs e)
         {
-            if (Session["EmployeeCode"] == null)
-            {
-                Response.Redirect("~/Login.aspx");
-            }
+            AuthHelper.RequireAuth();
             if (!IsPostBack)
             {
                 LoadRequests();
@@ -26,7 +19,6 @@ namespace VCBooking
 
         protected void LoadRequests()
         {
-
             string connStr = ConfigurationManager.ConnectionStrings["HRConnection"].ConnectionString;
 
             using (SqlConnection conn = new SqlConnection(connStr))
@@ -51,7 +43,6 @@ namespace VCBooking
                  JOIN Location_Master l ON h.LocationId = l.LocationId
                  ORDER BY h.CreatedDate DESC";
 
-
                 SqlDataAdapter da = new SqlDataAdapter(query, conn);
                 DataTable dt = new DataTable();
                 da.Fill(dt);
@@ -59,7 +50,6 @@ namespace VCBooking
                 gvRequests.DataSource = dt;
                 gvRequests.DataBind();
             }
-
         }
     }
 }
